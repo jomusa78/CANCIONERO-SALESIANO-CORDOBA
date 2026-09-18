@@ -1,0 +1,8 @@
+{
+  "name": "Remix CANCIONERO SALESIANO",
+  "description": "Cancionero Salesiano - Letras, acordes y búsqueda rápida para celebraciones y grupos juveniles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

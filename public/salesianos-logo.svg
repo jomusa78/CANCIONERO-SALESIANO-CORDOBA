@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 550" width="100%" height="100%">
+  <!-- Salesianos Córdoba 125 Emblem -->
+  <g fill="none" stroke="#b31942" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Top central circle (head) -->
+    <circle cx="250" cy="55" r="24" stroke-width="13" />
+    
+    <!-- Left & right upper circles (heads) -->
+    <circle cx="170" cy="140" r="22" stroke-width="13" />
+    <circle cx="330" cy="140" r="22" stroke-width="13" />
+
+    <!-- Triangular roof slope -->
+    <polyline points="135,240 250,115 365,240" stroke-width="13" />
+    <polyline points="110,240 250,90 390,240" stroke-width="9" />
+
+    <!-- Center Arch (taller) -->
+    <path d="M 215,350 L 215,200 A 35,35 0 0,1 285,200 L 285,350" stroke-width="12" />
+    <path d="M 230,350 L 230,200 A 20,20 0 0,1 270,200 L 270,350" stroke-width="7" />
+
+    <!-- Left Arch -->
+    <path d="M 140,350 L 140,250 A 35,35 0 0,1 210,250 L 210,350" stroke-width="12" />
+    <path d="M 155,350 L 155,250 A 20,20 0 0,1 195,250 L 195,350" stroke-width="7" />
+
+    <!-- Right Arch -->
+    <path d="M 290,350 L 290,250 A 35,35 0 0,1 360,250 L 360,350" stroke-width="12" />
+    <path d="M 305,350 L 305,250 A 20,20 0 0,1 345,250 L 345,350" stroke-width="7" />
+
+    <!-- Arch striping (Mezquita style radials) -->
+    <!-- Center arch stripes -->
+    <line x1="225" y1="180" x2="238" y2="190" stroke-width="7" />
+    <line x1="250" y1="172" x2="250" y2="188" stroke-width="7" />
+    <line x1="275" y1="180" x2="262" y2="190" stroke-width="7" />
+
+    <!-- Left arch stripes -->
+    <line x1="150" y1="230" x2="163" y2="240" stroke-width="7" />
+    <line x1="175" y1="222" x2="175" y2="238" stroke-width="7" />
+    <line x1="200" y1="230" x2="187" y2="240" stroke-width="7" />
+
+    <!-- Right arch stripes -->
+    <line x1="300" y1="230" x2="313" y2="240" stroke-width="7" />
+    <line x1="325" y1="222" x2="325" y2="238" stroke-width="7" />
+    <line x1="350" y1="230" x2="337" y2="240" stroke-width="7" />
+
+    <!-- 1 2 5 Numerals -->
+    <!-- 1 under left arch -->
+    <polyline points="170,305 178,295 178,340" stroke-width="9" />
+    <!-- 2 under center arch -->
+    <path d="M 242,305 C 242,295 258,295 258,308 C 258,320 242,328 242,340 L 260,340" stroke-width="9" />
+    <!-- 5 under right arch -->
+    <path d="M 333,296 L 319,296 L 318,315 C 322,313 333,313 333,326 C 333,338 322,341 317,338" stroke-width="9" />
+  </g>
+
+  <!-- Typography: SALESIANOS CÓRDOBA -->
+  <text x="250" y="415" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="38" letter-spacing="4" fill="#b31942">
+    SALESIANOS
+  </text>
+  <text x="250" y="465" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="36" letter-spacing="6" fill="#b31942">
+    CŌRDOBA
+  </text>
+</svg>

@@ -152,11 +152,11 @@ export const Navbar: React.FC = () => {
                     type="button"
                     onClick={openAuthModal}
                     className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-950 hover:bg-rose-100 transition-colors flex items-center gap-1.5"
-                    title={`Modo Total: ${currentUser?.name}`}
+                    title="Modo Administrador Activo"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#b31942] shrink-0" />
-                    <span className="text-xs font-bold hidden lg:inline max-w-[110px] truncate">
-                      {currentUser?.name}
+                    <span className="text-xs font-bold hidden lg:inline">
+                      Administrador
                     </span>
                   </button>
 

@@ -10,13 +10,17 @@ import {
   Trash2, 
   Edit3, 
   Eye, 
+  EyeOff,
   FileCode, 
   ShieldAlert, 
   RotateCcw, 
   Check, 
   Tag as TagIcon,
   Music,
-  ListOrdered
+  ListOrdered,
+  Lock,
+  Server,
+  Loader2
 } from 'lucide-react';
 
 interface AdminPanelModalProps {
@@ -35,7 +39,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onClose,
   onConfirmDelete,
 }) => {
-  const { isAdmin, loginAsAdmin, adminCodeHint } = useAuth();
+  const { isAdmin, loginAsAdmin } = useAuth();
   const { 
     songs, 
     addSong, 
@@ -49,10 +53,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   // Active view inside modal: 'list' (manage songs) or 'form' (add/edit)
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
 
-  // Gate form state when not admin
-  const [gateAdminName, setGateAdminName] = useState('Director(a) Musical');
-  const [gateAdminCode, setGateAdminCode] = useState('');
+  // Gate form state when not admin (only password)
+  const [gateAdminPassword, setGateAdminPassword] = useState('');
+  const [gateShowPassword, setGateShowPassword] = useState(false);
   const [gateError, setGateError] = useState('');
+  const [gateIsSubmitting, setGateIsSubmitting] = useState(false);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -110,14 +115,16 @@ Con acordes [G]vivos y mu[Em]sicales,
 
   // Protected check: If not admin, show secure credential prompt
   if (!isAdmin) {
-    const handleGateSubmit = (e: React.FormEvent) => {
+    const handleGateSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setGateError('');
-      const res = loginAsAdmin(gateAdminName, gateAdminCode);
+      setGateIsSubmitting(true);
+      const res = await loginAsAdmin(gateAdminPassword);
+      setGateIsSubmitting(false);
       if (!res.success) {
-        setGateError(res.message || 'Código incorrecto');
+        setGateError(res.message || 'Contraseña incorrecta');
       } else {
-        setGateAdminCode('');
+        setGateAdminPassword('');
       }
     };
 
@@ -130,7 +137,7 @@ Con acordes [G]vivos y mu[Em]sicales,
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">Acceso de Administrador</h2>
-              <p className="text-xs text-slate-500">Solo el administrador del grupo puede añadir o editar canciones.</p>
+              <p className="text-xs text-slate-500">Introduce la contraseña de administrador para gestionar canciones.</p>
             </div>
           </div>
 
@@ -142,44 +149,51 @@ Con acordes [G]vivos y mu[Em]sicales,
             )}
 
             <div>
-              <label htmlFor="gate-admin-name" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Nombre del Administrador
+              <label htmlFor="gate-admin-code" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contraseña de Administrador *
               </label>
-              <input
-                id="gate-admin-name"
-                type="text"
-                required
-                value={gateAdminName}
-                onChange={e => setGateAdminName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="gate-admin-code" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Contraseña / Código de Seguridad
-              </label>
-              <input
-                id="gate-admin-code"
-                type="password"
-                required
-                value={gateAdminCode}
-                onChange={e => setGateAdminCode(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">
-                Código por defecto: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-700">{adminCodeHint}</code>
-              </p>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="gate-admin-code"
+                  type={gateShowPassword ? 'text' : 'password'}
+                  required
+                  autoFocus
+                  value={gateAdminPassword}
+                  onChange={e => setGateAdminPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:bg-white font-sans"
+                />
+                <button
+                  type="button"
+                  onClick={() => setGateShowPassword(!gateShowPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  title={gateShowPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                >
+                  {gateShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-2">
+                <Server className="w-3 h-3 text-emerald-600" />
+                <span>Verificada en el servidor web</span>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2 pt-2">
               <button
                 id="btn-gate-submit"
                 type="submit"
-                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors shadow-xs"
+                disabled={gateIsSubmitting}
+                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold text-sm rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2"
               >
-                Validar y Desbloquear Panel
+                {gateIsSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verificando en el servidor...</span>
+                  </>
+                ) : (
+                  <span>Validar y Desbloquear Panel</span>
+                )}
               </button>
               <button
                 type="button"

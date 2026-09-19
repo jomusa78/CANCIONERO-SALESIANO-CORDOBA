@@ -9,7 +9,11 @@ import {
   AlertCircle,
   Key,
   LogOut,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff,
+  Server,
+  Loader2
 } from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
@@ -19,54 +23,70 @@ export const AuthModal: React.FC = () => {
     loginAsAdmin, 
     isAdmin, 
     updateAdminCode,
-    currentUser,
     logout,
-    adminCodeHint
+    isLoading
   } = useAuth();
 
-  // Admin login form state
-  const [adminName, setAdminName] = useState('Director(a) Musical');
-  const [adminCode, setAdminCode] = useState('');
+  // Admin login form state - ONLY password as requested
+  const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Change password toggle
   const [showChangeCode, setShowChangeCode] = useState(false);
   const [currentCodeInput, setCurrentCodeInput] = useState('');
   const [newCodeInput, setNewCodeInput] = useState('');
+  const [showChangePasswordVisible, setShowChangePasswordVisible] = useState(false);
   const [changeCodeMessage, setChangeCodeMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   useEffect(() => {
     if (isAuthModalOpen) {
       setAdminError('');
-      setAdminCode('');
+      setAdminPassword('');
+      setShowPassword(false);
       setChangeCodeMessage(null);
       setShowChangeCode(false);
-      if (currentUser?.role === 'administrador') {
-        setAdminName(currentUser.name);
-      }
+      setCurrentCodeInput('');
+      setNewCodeInput('');
     }
-  }, [isAuthModalOpen, currentUser]);
+  }, [isAuthModalOpen]);
 
   if (!isAuthModalOpen) return null;
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminError('');
-    const result = loginAsAdmin(adminName, adminCode);
+    setIsSubmitting(true);
+
+    const result = await loginAsAdmin(adminPassword);
+    setIsSubmitting(false);
+
     if (!result.success) {
-      setAdminError(result.message || 'Código o contraseña incorrecta');
+      setAdminError(result.message || 'Contraseña incorrecta. Acceso denegado.');
     }
   };
 
-  const handleChangeCodeSubmit = (e: React.FormEvent) => {
+  const handleChangeCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = updateAdminCode(currentCodeInput, newCodeInput);
+    setChangeCodeMessage(null);
+    setIsSubmitting(true);
+
+    const result = await updateAdminCode(currentCodeInput, newCodeInput);
+    setIsSubmitting(false);
+
     if (result.success) {
-      setChangeCodeMessage({ type: 'success', text: result.message || 'Código modificado con éxito' });
+      setChangeCodeMessage({ 
+        type: 'success', 
+        text: result.message || 'Contraseña modificada con éxito en el servidor.' 
+      });
       setCurrentCodeInput('');
       setNewCodeInput('');
     } else {
-      setChangeCodeMessage({ type: 'error', text: result.message || 'Error al cambiar código' });
+      setChangeCodeMessage({ 
+        type: 'error', 
+        text: result.message || 'Error al cambiar la contraseña en el servidor.' 
+      });
     }
   };
 
@@ -82,10 +102,10 @@ export const AuthModal: React.FC = () => {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold leading-tight">
-                {isAdmin ? 'Modo Total Activo' : 'Acceso de Administrador'}
+                {isAdmin ? 'Modo Administrador Activo' : 'Entrar en Modo Administrador'}
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-400">
-                {isAdmin ? 'Permisos completos habilitados' : 'Introduce tus datos para gestionar canciones'}
+                {isAdmin ? 'Permisos de administración habilitados' : 'Introduce la contraseña para gestionar el cancionero'}
               </p>
             </div>
           </div>
@@ -103,26 +123,26 @@ export const AuthModal: React.FC = () => {
         {/* Modal Body */}
         <div className="p-4 sm:p-6">
           {isAdmin ? (
-            /* Currently in Admin Mode (Modo Total) */
+            /* Currently in Admin Mode */
             <div className="space-y-4">
               <div className="p-3.5 sm:p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider bg-amber-200/70 px-2 py-0.5 rounded-md">
-                      Modo Total
+                      Administrador
+                    </span>
+                    <span className="text-[10px] font-medium text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <Server className="w-2.5 h-2.5" /> Servidor Web
                     </span>
                   </div>
-                  <p className="text-sm text-slate-900 font-bold mt-1">
-                    {currentUser?.name}
-                  </p>
-                  <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                    Puedes añadir nuevas canciones, editar acordes y gestionar el catálogo completo.
+                  <p className="text-xs text-slate-700 mt-2 leading-relaxed">
+                    Tienes permisos completos habilitados para crear nuevas canciones, editar acordes en tiempo real y organizar el catálogo.
                   </p>
                 </div>
               </div>
 
-              {/* Change secret password option */}
+              {/* Change secret password on web server */}
               <div className="pt-2 border-t border-slate-100">
                 <button
                   type="button"
@@ -130,11 +150,15 @@ export const AuthModal: React.FC = () => {
                   className="text-xs font-semibold text-slate-600 hover:text-amber-700 flex items-center gap-1.5 transition-colors"
                 >
                   <Key className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{showChangeCode ? 'Ocultar cambio de contraseña' : 'Cambiar contraseña de administrador'}</span>
+                  <span>{showChangeCode ? 'Ocultar cambio de contraseña' : 'Cambiar contraseña en el servidor web'}</span>
                 </button>
 
                 {showChangeCode && (
                   <form onSubmit={handleChangeCodeSubmit} className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      La nueva contraseña se guardará en el servidor web (no localmente en tu navegador).
+                    </p>
+
                     {changeCodeMessage && (
                       <div className={`p-2 text-xs font-semibold rounded-lg ${
                         changeCodeMessage.type === 'success' 
@@ -146,7 +170,7 @@ export const AuthModal: React.FC = () => {
                     )}
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Contraseña Actual
+                        Contraseña Actual del Servidor
                       </label>
                       <input
                         type="password"
@@ -161,20 +185,32 @@ export const AuthModal: React.FC = () => {
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
                         Nueva Contraseña
                       </label>
-                      <input
-                        type="password"
-                        required
-                        value={newCodeInput}
-                        onChange={e => setNewCodeInput(e.target.value)}
-                        placeholder="Mínimo 4 caracteres"
-                        className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showChangePasswordVisible ? 'text' : 'password'}
+                          required
+                          value={newCodeInput}
+                          onChange={e => setNewCodeInput(e.target.value)}
+                          placeholder="Mínimo 4 caracteres"
+                          className="w-full pl-3 pr-8 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowChangePasswordVisible(!showChangePasswordVisible)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                          title={showChangePasswordVisible ? 'Ocultar' : 'Mostrar'}
+                        >
+                          {showChangePasswordVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                      </div>
                     </div>
                     <button
                       type="submit"
-                      className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition-colors"
+                      disabled={isSubmitting}
+                      className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
-                      Guardar Nueva Contraseña
+                      {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                      <span>Guardar Nueva Contraseña en el Servidor</span>
                     </button>
                   </form>
                 )}
@@ -187,7 +223,7 @@ export const AuthModal: React.FC = () => {
                   onClick={closeAuthModal}
                   className="py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors text-center"
                 >
-                  Continuar en Modo Total
+                  Continuar como Administrador
                 </button>
                 <button
                   type="button"
@@ -203,14 +239,14 @@ export const AuthModal: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* Login Form: Name + Code */
+            /* Login Form: ONLY Password (NO Admin Name Field) */
             <form onSubmit={handleAdminSubmit} className="space-y-4">
               <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3 sm:p-3.5 text-xs text-amber-950 leading-relaxed">
                 <p className="font-bold flex items-center gap-1.5 mb-1 text-amber-900">
-                  <Sparkles className="w-4 h-4 text-amber-600" /> Modo Total para el Administrador
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" /> Acceso de Administrador
                 </p>
                 <p className="text-amber-800">
-                  Ingresa tu nombre y contraseña para activar los permisos de añadir, editar y organizar las canciones del grupo.
+                  Ingresa la contraseña para activar los permisos de añadir, editar y organizar las canciones.
                 </p>
               </div>
 
@@ -221,50 +257,57 @@ export const AuthModal: React.FC = () => {
                 </div>
               )}
 
+              {/* ONLY Password Input */}
               <div>
-                <label htmlFor="admin-modal-name" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Nombre del Administrador *
-                </label>
-                <input
-                  id="admin-modal-name"
-                  type="text"
-                  required
-                  value={adminName}
-                  onChange={e => setAdminName(e.target.value)}
-                  placeholder="Ej. Director Musical"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-amber-500 focus:bg-white transition-all"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="admin-modal-code" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Contraseña / Código de Administrador *
+                <label htmlFor="admin-modal-code" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Contraseña de Administrador *
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     id="admin-modal-code"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
-                    value={adminCode}
-                    onChange={e => setAdminCode(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-amber-500 focus:bg-white transition-all"
+                    autoFocus
+                    value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)}
+                    placeholder="Escribe la contraseña..."
+                    className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-amber-500 focus:bg-white transition-all font-sans"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Código de demostración inicial: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-700">{adminCodeHint}</code>
-                </p>
+                
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-2">
+                  <Server className="w-3 h-3 text-emerald-600" />
+                  <span>Verificación segura y almacenada en el servidor web</span>
+                </div>
               </div>
 
               <div className="pt-1">
                 <button
                   id="btn-admin-login-submit"
                   type="submit"
-                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-xs transition-colors text-sm flex items-center justify-center gap-2"
+                  disabled={isSubmitting || isLoading}
+                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-bold rounded-xl shadow-xs transition-colors text-sm flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Entrar en Modo Total</span>
+                  {isSubmitting || isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Verificando en el servidor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Entrar en Modo Administrador</span>
+                    </>
+                  )}
                 </button>
               </div>
 

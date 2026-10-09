@@ -284,6 +284,83 @@ app.get('/api/admin/status', (_req, res) => {
 });
 
 // ----------------------------------------------------
+// PERSISTENT SONGS API (MULTI-DEVICE SYNCHRONIZATION)
+// ----------------------------------------------------
+const SONGS_FILE = path.resolve(DATA_DIR, 'songs.json');
+
+function getServerSongs(): any[] | null {
+  try {
+    if (fs.existsSync(SONGS_FILE)) {
+      const raw = fs.readFileSync(SONGS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.error('[Server] Error reading songs database:', err);
+  }
+  return null;
+}
+
+function saveServerSongs(songsList: any[]): boolean {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(SONGS_FILE, JSON.stringify(songsList, null, 2), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('[Server] Error writing songs database:', err);
+    return false;
+  }
+}
+
+// GET all songs
+app.get('/api/songs', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  const list = getServerSongs();
+  res.json({
+    success: true,
+    songs: list || [],
+    count: list ? list.length : 0,
+    hasCustomData: list !== null
+  });
+});
+
+// POST song (bulk replace or single upsert)
+app.post('/api/songs', (req, res) => {
+  const payload = req.body;
+  if (Array.isArray(payload)) {
+    saveServerSongs(payload);
+    return res.json({ success: true, count: payload.length });
+  } else if (payload && typeof payload === 'object' && payload.id) {
+    let currentSongs = getServerSongs() || [];
+    const index = currentSongs.findIndex((s: any) => s.id === payload.id);
+    if (index >= 0) {
+      currentSongs[index] = { ...currentSongs[index], ...payload, updatedAt: new Date().toISOString() };
+    } else {
+      currentSongs = [payload, ...currentSongs];
+    }
+    saveServerSongs(currentSongs);
+    return res.json({ success: true, song: payload, total: currentSongs.length });
+  }
+  return res.status(400).json({ success: false, message: 'Formato de canción inválido.' });
+});
+
+// DELETE song by id
+app.delete('/api/songs/:id', (req, res) => {
+  const songId = req.params.id;
+  let currentSongs = getServerSongs() || [];
+  const initialLength = currentSongs.length;
+  currentSongs = currentSongs.filter((s: any) => s.id !== songId);
+  saveServerSongs(currentSongs);
+  return res.json({
+    success: true,
+    deleted: initialLength !== currentSongs.length,
+    remaining: currentSongs.length
+  });
+});
+
+// ----------------------------------------------------
 // ANTI-CACHE & VERSION CHECK ENDPOINTS
 // ----------------------------------------------------
 const serverStartTime = Date.now().toString();

@@ -372,14 +372,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 flex-wrap">
                 Panel de Administración
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-300 border border-rose-500/40">
                   CANCIONERO
                 </span>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Multi-dispositivo Cloud
+                </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Gestión de catálogo: subida de archivos PDF, etiquetas y edición.
+                Gestión centralizada del catálogo: las canciones añadidas o modificadas se guardan de forma permanente para todos los ordenadores.
               </p>
             </div>
           </div>

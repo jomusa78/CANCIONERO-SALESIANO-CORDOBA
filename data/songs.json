@@ -1,0 +1,121 @@
+[
+  {
+    "id": "song-salesianos-1",
+    "title": "Nº 1",
+    "artist": "Padre, Maestro y Amigo",
+    "originalKey": "D",
+    "bpm": 86,
+    "timeSignature": "4/4",
+    "tags": [
+      "Salesiano",
+      "Don Bosco",
+      "Juvenil"
+    ],
+    "createdAt": "2026-01-01T10:00:00Z",
+    "isPublic": true,
+    "content": "[Intro]\n[D] [A] [Bm] [G] [A]\n\n[Verso 1]\nUn co[D]razón tan grande como el [A]mar,\nunos [Bm]ojos que saben com[F#m]prender,\nunas [G]manos abiertas para [D]dar,\ny una [Em]vida entregada por a[A]mor.\n\n[Verso 2]\nCami[D]naste buscando la ilu[A]sión,\nen los [Bm]patios sembraste la a[F#m]mistad,\naprendi[G]mos contigo una can[D]ción,\nla ale[Em]gría de Dios en liber[A]tad.\n\n[Coro]\n[D]Padre, ma[A]estro y a[Bm]migo,\n[G]luz en el ca[Em]mino de juven[A]tud.\n[D]Don Bosco, que[A]remos se[Bm]guir tu voz,\n[G]ser signos de a[A]mor con Jesús y con [D]Dios.\n\n[Verso 3]\nCon Ma[D]ría Auxiliadora al ca[A]minar,\nun so[Bm]ñador que supo com[F#m]partir,\nhoy tus [G]jóvenes vuelven a can[D]tar,\nla espe[Em]ranza de un nuevo porve[A]nir.\n\n[Coro]\n[D]Padre, ma[A]estro y a[Bm]migo,\n[G]luz en el ca[Em]mino de juven[A]tud.\n[D]Don Bosco, que[A]remos se[Bm]guir tu voz,\n[G]ser signos de a[A]mor con Jesús y con [D]Dios.",
+    "plainLyrics": "Un corazón tan grande como el mar,\nunos ojos que saben comprender,\nunas manos abiertas para dar,\ny una vida entregada por amor.\n\nCaminaste buscando la ilusión,\nen los patios sembraste la amistad,\naprendimos contigo una canción,\nla alegría de Dios en libertad.\n\nPadre, maestro y amigo,\nluz en el camino de juventud.\nDon Bosco, queremos seguir tu voz,\nser signos de amor con Jesús y con Dios.\n\nCon María Auxiliadora al caminar,\nun soñador que supo compartir,\nhoy tus jóvenes vuelven a cantar,\nla esperanza de un nuevo porvenir.\n\nPadre, maestro y amigo,\nluz en el camino de juventud.\nDon Bosco, queremos seguir tu voz,\nser signos de amor con Jesús y con Dios."
+  },
+  {
+    "id": "song-salesianos-2",
+    "title": "Nº 2",
+    "artist": "Salve Don Bosco Santo",
+    "originalKey": "C",
+    "bpm": 100,
+    "timeSignature": "4/4",
+    "tags": [
+      "Salesiano",
+      "Himno",
+      "Don Bosco"
+    ],
+    "createdAt": "2026-01-02T10:00:00Z",
+    "isPublic": true,
+    "content": "[Intro]\n[C] [G] [Am] [F] [G]\n\n[Coro]\n[C]Salve Don [G]Bosco [Am]santo,\n[F]joven de corazón, [G]padre y pastor.\n[C]Oye nues[G]tro alaban[Am]za,\n[F]que brota del al[G]ma con gran a[C]mor.\n\n[Verso 1]\nPor tus [C]hijos que en el mundo can[G]tan,\nla ale[Am]gría, el trabajo y la o[Em]ración,\nuna es[F]cuela, un patio y una i[C]glesia,\ndonde [Dm]todos sentimos calor de ho[G]gar.\n\n[Coro]\n[C]Salve Don [G]Bosco [Am]santo,\n[F]joven de corazón, [G]padre y pastor.\n[C]Oye nues[G]tro alaban[Am]za,\n[F]que brota del al[G]ma con gran a[C]mor.",
+    "plainLyrics": "Salve Don Bosco santo,\njoven de corazón, padre y pastor.\nOye nuestro alabanza,\nque brota del alma con gran amor.\n\nPor tus hijos que en el mundo cantan,\nla alegría, el trabajo y la oración,\nuna escuela, un patio y una iglesia,\ndonde todos sentimos calor de hogar.\n\nSalve Don Bosco santo,\njoven de corazón, padre y pastor.\nOye nuestro alabanza,\nque brota del alma con gran amor."
+  },
+  {
+    "id": "song-1",
+    "title": "Nº 3",
+    "artist": "Cuán Grande Es Él",
+    "originalKey": "G",
+    "bpm": 72,
+    "timeSignature": "4/4",
+    "tags": [
+      "Alabanza",
+      "Himno",
+      "Adoración"
+    ],
+    "createdAt": "2026-01-10T10:00:00Z",
+    "isPublic": true,
+    "content": "[Intro]\n[G] [C] [G] [D] [G]\n\n[Verso 1]\nSe[G]ñor, mi Dios, al con[C]templar los cielos,\nel [G]firmanento y las es[D]trellas mil;\nal [G]oír tu voz en los po[C]tentes truenos\ny [G]ver brillar el [D]sol en su cen[G]it.\n\n[Coro]\nMi corazón entona la can[C]ción,\n¡Cuán grande es [G]Él! ¡Cuán grande es [D]Él!\nMi corazón entona la can[C]ción,\n¡Cuán grande es [G]Él! ¡Cuán [D]grande es [G]Él!",
+    "plainLyrics": "Señor, mi Dios, al contemplar los cielos,\nel firmanento y las estrellas mil;\nal oír tu voz en los potentes truenos\ny ver brillar el sol en su cenit.\n\nMi corazón entona la canción,\n¡Cuán grande es Él! ¡Cuán grande es Él!\nMi corazón entona la canción,\n¡Cuán grande es Él! ¡Cuán grande es Él!"
+  },
+  {
+    "id": "song-2",
+    "title": "Nº 4",
+    "artist": "10,000 Razones (Bless the Lord)",
+    "originalKey": "G",
+    "bpm": 73,
+    "timeSignature": "4/4",
+    "tags": [
+      "Adoración",
+      "Contemporáneo",
+      "Alabanza"
+    ],
+    "createdAt": "2026-01-12T10:00:00Z",
+    "isPublic": true,
+    "content": "[Coro]\nQue [C]todo lo que [G]soy alabe al [D]Señor con el [Em]corazón.\n[C]Canta como [G]nunca alaba a su [D]nombre de ver[Em]dad.\nCantaré de tu a[C]mor [D]por siem[G]pre.\n\n[Verso 1]\nSale el [C]sol es un [G]nuevo día,\n[D]es tiempo de [Em]cantar otra vez.\nCual[C]quiera que sea lo que ven[G]ga y lo que pase al fi[D]nal,\nque me en[C]cuentre can[G]tando cuan[D]do caiga la [G]noche.",
+    "plainLyrics": "Que todo lo que soy alabe al Señor con el corazón.\nCanta como nunca alaba a su nombre de verdad.\nCantaré de tu amor por siempre.\n\nSale el sol es un nuevo día,\nes tiempo de cantar otra vez.\nCualquiera que sea lo que venga y lo que pase al final,\nque me encuentre cantando cuando caiga la noche."
+  },
+  {
+    "id": "song-3",
+    "title": "Nº 5",
+    "artist": "Gracia Sublime Es",
+    "originalKey": "G",
+    "bpm": 102,
+    "timeSignature": "4/4",
+    "tags": [
+      "Adoración",
+      "Celebración",
+      "Alabanza"
+    ],
+    "createdAt": "2026-01-14T12:00:00Z",
+    "isPublic": true,
+    "content": "[Verso 1]\n¿Quién [G]rompe el poder del pecado y la maldad?\nSu a[C]mor es poderoso y fuerte sin igual.\nEl [Em]Rey de gloria, el [D]Rey sobre todo [C]rey.\n\n[Coro]\n[G]Gracia sublime es, per[C]fecto es su amor.\nTo[Em]maste mi lugar, car[D]gaste con mi cruz.\nTu [G]vida diste ahí por [C]mi libertad.\nJe[Em]sús, te canto a [D]Ti por lo que hiciste en [G]mí.",
+    "plainLyrics": "¿Quién rompe el poder del pecado y la maldad?\nSu amor es poderoso y fuerte sin igual.\nEl Rey de gloria, el Rey sobre todo rey.\n\nGracia sublime es, perfecto es su amor.\nTomaste mi lugar, cargaste con mi cruz.\nTu vida diste ahí por mi libertad.\nJesús, te canto a Ti por lo que hiciste en mí."
+  },
+  {
+    "id": "song-4",
+    "title": "Nº 6",
+    "artist": "Sublime Gracia (Amazing Grace)",
+    "originalKey": "E",
+    "bpm": 68,
+    "timeSignature": "3/4",
+    "tags": [
+      "Himno",
+      "Clásico",
+      "Tradicional"
+    ],
+    "createdAt": "2026-01-15T09:00:00Z",
+    "isPublic": true,
+    "content": "[Verso 1]\nSub[E]lime gracia del [A]Se[E]ñor,\nque a un in[B7]fiel salvó.\nFui [E]ciego mas hoy [A]miro [E]yo,\nper[C#m]dido y [B7]Él me ha[E]lló.\n\n[Verso 2]\nSu [E]gracia me enseñó a [A]te[E]mer,\nmis du[B7]das ahuyentó.\n¡Oh, [E]cuán preciosa [A]fue a mi [E]ser\nla [C#m]hora en que [B7]Él me ha[E]bló!",
+    "plainLyrics": "Sublime gracia del Señor,\nque a un infiel salvó.\nFui ciego mas hoy miro yo,\nperdido y Él me halló.\n\nSu gracia me enseñó a temer,\nmis dudas ahuyentó.\n¡Oh, cuán preciosa fue a mi ser\nla hora en que Él me habló!"
+  },
+  {
+    "id": "song-7",
+    "title": "Nº 7",
+    "artist": "Hallelujah",
+    "originalKey": "C",
+    "bpm": 58,
+    "timeSignature": "6/8",
+    "tags": [
+      "Balada",
+      "Clásico",
+      "Acústico"
+    ],
+    "createdAt": "2026-01-20T18:00:00Z",
+    "isPublic": true,
+    "content": "[Intro]\n[C] [Am] [C] [Am]\n\n[Verso 1]\nUn [C]rey secreto en sole[Am]dad,\ntocó un a[C]corde para dar la [Am]paz,\nmas [F]no te importa la mú[G]sica, ¿ver[C]dad? [G]\nY [C]va de cuarta a [F]quinta [G]bien,\nsube el me[Am]nor, el ma[F]yor después,\nel [G]rey perplejo com[E7]puso el Ale[Am]luya.\n\n[Coro]\nAle[F]luya, Ale[Am]luya,\nAle[F]luya, Ale[C]lu[G]ya... [C]",
+    "plainLyrics": "Un rey secreto en soledad,\ntocó un acorde para dar la paz,\nmas no te importa la música, ¿verdad?\nY va de cuarta a quinta bien,\nsube el menor, el mayor después,\nel rey perplejo compuso el Aleluya.\n\nAleluya, Aleluya,\nAleluya, Aleluya..."
+  }
+]

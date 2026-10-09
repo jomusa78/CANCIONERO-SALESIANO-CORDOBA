@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isVerifiedAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'jomusa78@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation helper for Song entity
+    function isValidSong(data) {
+      return data.keys().hasAll(['id', 'title', 'artist', 'tags']) &&
+        data.keys().hasOnly([
+          'id', 'title', 'artist', 'originalKey', 'bpm', 'timeSignature',
+          'tags', 'content', 'plainLyrics', 'createdAt', 'updatedAt',
+          'isFavorite', 'pdfUrl', 'pdfFileName', 'pdfFileSize', 'isPublic'
+        ]) &&
+        data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        data.artist is string && data.artist.size() > 0 && data.artist.size() <= 300 &&
+        data.tags is list && data.tags.size() <= 20 &&
+        (!('content' in data) || (data.content is string && data.content.size() <= 50000)) &&
+        (!('plainLyrics' in data) || (data.plainLyrics is string && data.plainLyrics.size() <= 50000)) &&
+        (!('originalKey' in data) || (data.originalKey is string && data.originalKey.size() <= 20)) &&
+        (!('bpm' in data) || (data.bpm is number)) &&
+        (!('timeSignature' in data) || (data.timeSignature is string && data.timeSignature.size() <= 20)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 100)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 100)) &&
+        (!('isFavorite' in data) || (data.isFavorite is bool)) &&
+        (!('isPublic' in data) || (data.isPublic is bool)) &&
+        (!('pdfUrl' in data) || (data.pdfUrl is string && data.pdfUrl.size() <= 500000)) &&
+        (!('pdfFileName' in data) || (data.pdfFileName is string && data.pdfFileName.size() <= 255)) &&
+        (!('pdfFileSize' in data) || (data.pdfFileSize is number));
+    }
+
+    // Songbook collection: All public congregation members can view songs
+    // Only verified administrators can create, update, and delete songs
+    match /songs/{songId} {
+      allow get, list: if isValidId(songId) && (
+        resource.data.isPublic == true || isVerifiedAdmin()
+      );
+
+      allow create: if isValidId(songId) &&
+        isVerifiedAdmin() &&
+        isValidSong(incoming()) &&
+        incoming().id == songId;
+
+      allow update: if isValidId(songId) &&
+        isVerifiedAdmin() &&
+        isValidSong(incoming()) &&
+        incoming().id == existing().id;
+
+      allow delete: if isValidId(songId) &&
+        isVerifiedAdmin();
+    }
+
+    // Admins collection: Used for RBAC
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && (request.auth.uid == adminId || isVerifiedAdmin());
+      allow write: if isVerifiedAdmin() && isValidId(adminId);
+    }
+  }
+}

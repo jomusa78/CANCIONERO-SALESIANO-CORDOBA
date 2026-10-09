@@ -1,0 +1,125 @@
+{
+  "entities": {
+    "Song": {
+      "title": "Song",
+      "description": "A musical sheet/song document in the Cancionero Salesiano catalog.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique song document identifier",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Song number or identifier",
+          "maxLength": 200
+        },
+        "artist": {
+          "type": "string",
+          "description": "Song title or author",
+          "maxLength": 300
+        },
+        "originalKey": {
+          "type": "string",
+          "description": "Original musical key",
+          "maxLength": 20
+        },
+        "bpm": {
+          "type": "number",
+          "description": "Beats per minute tempo"
+        },
+        "timeSignature": {
+          "type": "string",
+          "description": "Musical time signature",
+          "maxLength": 20
+        },
+        "tags": {
+          "type": "array",
+          "description": "List of thematic labels or categories"
+        },
+        "content": {
+          "type": "string",
+          "description": "Lyrics, chord sheet text, or song notes",
+          "maxLength": 50000
+        },
+        "plainLyrics": {
+          "type": "string",
+          "description": "Normalized lyrics text for full-text search",
+          "maxLength": 50000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO date-time or creation timestamp",
+          "maxLength": 100
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO date-time or update timestamp",
+          "maxLength": 100
+        },
+        "isFavorite": {
+          "type": "boolean",
+          "description": "Favorite status flag"
+        },
+        "pdfUrl": {
+          "type": "string",
+          "description": "URL or Data URI of the uploaded PDF score",
+          "maxLength": 500000
+        },
+        "pdfFileName": {
+          "type": "string",
+          "description": "Original filename of the PDF score",
+          "maxLength": 255
+        },
+        "pdfFileSize": {
+          "type": "number",
+          "description": "Size in bytes of the PDF score"
+        },
+        "isPublic": {
+          "type": "boolean",
+          "description": "Whether the song is publicly visible in the songbook"
+        }
+      },
+      "required": ["id", "title", "artist", "tags"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Registered administrator document for access control",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Admin user unique UID",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "Admin verified email address",
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "description": "Role name",
+          "maxLength": 30
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp",
+          "maxLength": 100
+        }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/songs/{songId}": {
+      "schema": "Song",
+      "description": "Collection of song sheets in the Cancionero Salesiano"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Collection of verified administrators"
+    }
+  }
+}

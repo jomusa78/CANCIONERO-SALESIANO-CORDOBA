@@ -23,7 +23,9 @@ export const Navbar: React.FC = () => {
     setSelectedSong,
     searchQuery,
     setSearchQuery,
-    selectedSong
+    selectedSong,
+    isCloudSynced,
+    syncSource
   } = useSongs();
 
   const handleOpenAddSong = () => {
@@ -189,6 +191,17 @@ export const Navbar: React.FC = () => {
                 </button>
               </div>
             )}
+
+            {/* Multi-device sync indicator */}
+            <div 
+              className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-600"
+              title="Sincronización multi-dispositivo activa: las canciones añadidas o modificadas se actualizan en todos los ordenadores"
+            >
+              <span className={`w-2 h-2 rounded-full ${isCloudSynced ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+              <span className="hidden xl:inline text-slate-500 font-semibold">
+                {isCloudSynced ? 'Nube Activa' : 'Sincronizado'}
+              </span>
+            </div>
 
             {/* Quick reload latest version button (bypasses browser cache) */}
             <button

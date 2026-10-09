@@ -60,7 +60,11 @@ service cloud.firestore {
     // Songbook collection: All public congregation members can view songs
     // Only verified administrators can create, update, and delete songs
     match /songs/{songId} {
-      allow get, list: if isValidId(songId) && (
+      allow get: if isValidId(songId) && (
+        resource.data.isPublic == true || isVerifiedAdmin()
+      );
+
+      allow list: if (
         resource.data.isPublic == true || isVerifiedAdmin()
       );
 

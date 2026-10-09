@@ -9,6 +9,8 @@ import {
   setDoc,
   deleteDoc,
   onSnapshot,
+  query,
+  where,
   handleFirestoreError,
   OperationType,
 } from '../lib/firebase';
@@ -117,10 +119,10 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 2. Real-time sync with Firebase Cloud Firestore (live across all devices)
   useEffect(() => {
-    const songsColRef = collection(db, 'songs');
+    const songsQuery = query(collection(db, 'songs'), where('isPublic', '==', true));
 
     const unsubscribe = onSnapshot(
-      songsColRef,
+      songsQuery,
       async snapshot => {
         if (snapshot.empty) {
           // If Firestore is completely empty on first launch, seed with INITIAL_SONGS

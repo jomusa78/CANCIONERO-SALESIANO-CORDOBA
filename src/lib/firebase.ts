@@ -10,13 +10,13 @@ import {
 import {
   getFirestore,
   doc,
-  getDocFromServer,
   collection,
   getDocs,
   setDoc,
   deleteDoc,
   onSnapshot,
   query,
+  where,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -29,18 +29,6 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-
-// Test connection on boot as required by specification
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('[Firebase] Client is currently offline or connecting to Firestore.');
-    }
-  }
-}
-testConnection();
 
 export enum OperationType {
   CREATE = 'create',
@@ -105,5 +93,6 @@ export {
   deleteDoc,
   onSnapshot,
   query,
+  where,
 };
 export type { FirebaseUser };

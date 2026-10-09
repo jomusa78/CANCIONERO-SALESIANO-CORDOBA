@@ -12,3 +12,30 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Directivas anti-caché para Netlify: index.html y raíz nunca se guardan en caché persistente
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

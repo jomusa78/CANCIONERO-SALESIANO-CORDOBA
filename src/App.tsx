@@ -8,6 +8,7 @@ import { SongDetailView } from './components/SongDetailView';
 import { AdminPanelModal } from './components/AdminPanelModal';
 import { AuthModal } from './components/AuthModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+import { UpdateNotification } from './components/UpdateNotification';
 import { Song } from './types';
 import { 
   SearchX, 
@@ -279,6 +280,9 @@ const AppContent: React.FC = () => {
         onClose={() => setSongToDelete(null)}
         onConfirm={id => deleteSong(id)}
       />
+
+      {/* Auto-Update and Cache-Buster Notification */}
+      <UpdateNotification />
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 sm:py-8 mt-12 text-center text-xs text-slate-500">

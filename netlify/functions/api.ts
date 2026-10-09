@@ -263,6 +263,23 @@ export const handler = async (event: NetlifyEvent) => {
     };
   }
 
+  // Route: /api/version
+  if (path.endsWith('/version')) {
+    return {
+      statusCode: 200,
+      headers: {
+        ...headers,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+      body: JSON.stringify({
+        version: '1.0.0',
+        timestamp: Date.now()
+      })
+    };
+  }
+
   // Route: /api/admin/status or default
   return {
     statusCode: 200,

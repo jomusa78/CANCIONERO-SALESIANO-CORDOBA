@@ -10,8 +10,10 @@ import {
   KeyRound,
   BookOpen,
   Search,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
+import { forceHardReload } from '../utils/versionCheck';
 
 export const Navbar: React.FC = () => {
   const { currentUser, isAdmin, logout, openAuthModal } = useAuth();
@@ -188,6 +190,17 @@ export const Navbar: React.FC = () => {
               </div>
             )}
 
+            {/* Quick reload latest version button (bypasses browser cache) */}
+            <button
+              id="nav-btn-reload-latest"
+              type="button"
+              onClick={() => forceHardReload()}
+              className="p-2 sm:p-2.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors flex items-center justify-center cursor-pointer"
+              title="Recargar última versión del proyecto (sin caché)"
+              aria-label="Recargar última versión del proyecto"
+            >
+              <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 hover:rotate-180 transition-transform" />
+            </button>
           </div>
 
         </div>

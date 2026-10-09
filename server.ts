@@ -284,6 +284,23 @@ app.get('/api/admin/status', (_req, res) => {
 });
 
 // ----------------------------------------------------
+// ANTI-CACHE & VERSION CHECK ENDPOINTS
+// ----------------------------------------------------
+const serverStartTime = Date.now().toString();
+
+app.get(['/api/version', '/version.json'], (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.json({
+    version: '1.0.0',
+    buildTime: serverStartTime,
+    timestamp: Date.now()
+  });
+});
+
+// ----------------------------------------------------
 // VITE / STATIC SERVING MIDDLEWARE
 // ----------------------------------------------------
 
@@ -296,8 +313,35 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+
+    // Intercept requests for HTML and enforce no-cache
+    app.use((req, res, next) => {
+      if (req.path === '/' || req.path === '/index.html' || req.path.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+      }
+      next();
+    });
+
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html') || filePath.endsWith('version.json')) {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        } else if (filePath.includes('/assets/')) {
+          // Hashed assets are safe to cache immutably
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
+    }));
+
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

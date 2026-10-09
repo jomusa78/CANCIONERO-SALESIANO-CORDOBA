@@ -35,7 +35,7 @@ interface SongContextType {
 
 const SongContext = createContext<SongContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'cancionero_salesiano_songs_list';
+const STORAGE_KEY = 'cancionero_salesiano_songs_list_v2';
 
 export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [songs, setSongs] = useState<Song[]>(() => {
@@ -107,10 +107,10 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .filter(res => res.matches)
       .sort((a, b) => {
         if (sortBy === 'title') {
-          return a.song.title.localeCompare(b.song.title);
+          return a.song.title.localeCompare(b.song.title, undefined, { numeric: true, sensitivity: 'base' });
         }
         if (sortBy === 'artist') {
-          return a.song.artist.localeCompare(b.song.artist);
+          return a.song.artist.localeCompare(b.song.artist, undefined, { numeric: true, sensitivity: 'base' });
         }
         if (sortBy === 'recent') {
           return new Date(b.song.createdAt).getTime() - new Date(a.song.createdAt).getTime();

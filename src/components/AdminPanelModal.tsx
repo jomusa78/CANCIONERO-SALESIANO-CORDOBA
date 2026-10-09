@@ -243,19 +243,24 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       setPdfFileSize(file.size);
       setIsProcessingPdf(false);
 
-      // Auto-populate Title if empty from filename
-      if (!title.trim()) {
+      // Auto-populate song title (artist) if empty from filename
+      if (!artist.trim()) {
         const cleanName = file.name
           .replace(/\.pdf$/i, '')
           .replace(/[-_]/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
-        // Capitalize words
         const formatted = cleanName
           .split(' ')
           .map(w => w.charAt(0).toUpperCase() + w.slice(1))
           .join(' ');
-        setTitle(formatted);
+        setArtist(formatted);
+      }
+
+      // If song number (title) is empty, auto-suggest next number
+      if (!title.trim()) {
+        const nextNum = songs.length + 1;
+        setTitle(`Nº ${nextNum}`);
       }
     };
 
@@ -300,11 +305,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setValidationError('El título de la canción es obligatorio.');
+      setValidationError('El número de la canción es obligatorio (ej. Nº 1).');
       return;
     }
     if (!artist.trim()) {
-      setValidationError('El nombre del artista, coro o compositor es obligatorio.');
+      setValidationError('El título de la canción es obligatorio.');
       return;
     }
     if (!pdfUrl && !content.trim()) {
@@ -469,8 +474,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 <table className="w-full text-left text-xs sm:text-sm">
                   <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                     <tr>
-                      <th className="py-3 px-4">Título</th>
-                      <th className="py-3 px-4">Artista / Coro</th>
+                      <th className="py-3 px-4">Número</th>
+                      <th className="py-3 px-4">Título de Canción</th>
                       <th className="py-3 px-4 hidden sm:table-cell">Formato</th>
                       <th className="py-3 px-4 hidden md:table-cell">Etiquetas</th>
                       <th className="py-3 px-4 text-right">Acciones</th>
@@ -479,10 +484,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   <tbody className="divide-y divide-slate-200">
                     {songs.map(song => (
                       <tr key={song.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-4 font-semibold text-slate-900">
-                          {song.title}
+                        <td className="py-3 px-4 font-bold text-amber-900">
+                          <span className="px-2 py-0.5 rounded-md bg-amber-100 border border-amber-200 text-xs">
+                            {song.title}
+                          </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-600">
+                        <td className="py-3 px-4 font-semibold text-slate-900">
                           {song.artist}
                         </td>
                         <td className="py-3 px-4 hidden sm:table-cell">
@@ -664,10 +671,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
               {/* Basic Details Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Title */}
+                {/* Número de la Canción (anteriormente title) */}
                 <div>
                   <label htmlFor="form-song-title" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Título de la Canción *
+                    Número de Canción *
                   </label>
                   <input
                     id="form-song-title"
@@ -675,15 +682,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     required
                     value={title}
                     onChange={e => setTitle(e.target.value)}
-                    placeholder="Ej. Salve Don Bosco Santo"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-rose-500 focus:bg-white focus:ring-2 focus:ring-rose-500/20"
+                    placeholder="Ej. Nº 1 o 1"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:outline-none focus:border-rose-500 focus:bg-white focus:ring-2 focus:ring-rose-500/20"
                   />
+                  <p className="text-[11px] text-slate-500 mt-1">Número identificador en el cancionero</p>
                 </div>
 
-                {/* Artist */}
+                {/* Título de la Canción (anteriormente artist) */}
                 <div>
                   <label htmlFor="form-song-artist" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Artista / Coro / Autor *
+                    Título de la Canción *
                   </label>
                   <input
                     id="form-song-artist"
@@ -691,9 +699,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     required
                     value={artist}
                     onChange={e => setArtist(e.target.value)}
-                    placeholder="Ej. Tradicional Salesiano / Coro Juvenil"
+                    placeholder="Ej. Salve Don Bosco Santo"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-rose-500 focus:bg-white focus:ring-2 focus:ring-rose-500/20"
                   />
+                  <p className="text-[11px] text-slate-500 mt-1">Nombre o título del canto</p>
                 </div>
               </div>
 

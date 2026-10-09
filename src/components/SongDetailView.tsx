@@ -131,7 +131,7 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
               type="button"
               onClick={() => setSelectedSong(prevSong)}
               className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
-              title={`Anterior: ${prevSong.title}`}
+              title={`Anterior: ${prevSong.title} · ${prevSong.artist}`}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -141,7 +141,7 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
               type="button"
               onClick={() => setSelectedSong(nextSong)}
               className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
-              title={`Siguiente: ${nextSong.title}`}
+              title={`Siguiente: ${nextSong.title} · ${nextSong.artist}`}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -194,12 +194,14 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
                 </span>
               ))}
             </div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-black tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
+                {song.title}
+              </span>
+            </div>
             <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {song.title}
-            </h1>
-            <p className="text-sm sm:text-base font-medium text-slate-600 mt-0.5">
               {song.artist}
-            </p>
+            </h1>
           </div>
 
           {/* Quick PDF Action Buttons in Header */}

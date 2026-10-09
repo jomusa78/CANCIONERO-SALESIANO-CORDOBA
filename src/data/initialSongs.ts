@@ -1,11 +1,14 @@
 import { Song } from '../types';
 import { extractPlainLyrics } from '../utils/chordUtils';
 
+// In CANCIONERO SALESIANO:
+// title = Número de la canción en el cancionero (ej: "Nº 1", "Nº 2", etc.)
+// artist = Título de la canción
 const RAW_SONGS = [
   {
     id: 'song-salesianos-1',
-    title: 'Padre, Maestro y Amigo',
-    artist: 'Canción a San Juan Bosco',
+    title: 'Nº 1',
+    artist: 'Padre, Maestro y Amigo',
     originalKey: 'D',
     bpm: 86,
     timeSignature: '4/4',
@@ -46,8 +49,8 @@ la espe[Em]ranza de un nuevo porve[A]nir.
   },
   {
     id: 'song-salesianos-2',
-    title: 'Salve Don Bosco Santo',
-    artist: 'Himno Tradicional Salesiano',
+    title: 'Nº 2',
+    artist: 'Salve Don Bosco Santo',
     originalKey: 'C',
     bpm: 100,
     timeSignature: '4/4',
@@ -76,8 +79,8 @@ donde [Dm]todos sentimos calor de ho[G]gar.
   },
   {
     id: 'song-1',
-    title: 'Cuán Grande Es Él',
-    artist: 'Himno Tradicional',
+    title: 'Nº 3',
+    artist: 'Cuán Grande Es Él',
     originalKey: 'G',
     bpm: 72,
     timeSignature: '4/4',
@@ -112,8 +115,8 @@ Mi [G]corazón entona la can[C]ción,
   },
   {
     id: 'song-2',
-    title: 'De Ellos Aprendí',
-    artist: 'David Rees',
+    title: 'Nº 4',
+    artist: 'De Ellos Aprendí',
     originalKey: 'C',
     bpm: 110,
     timeSignature: '4/4',
@@ -142,8 +145,8 @@ sino [Am]por la fuerza de su gran co[F]razón.`,
   },
   {
     id: 'song-3',
-    title: 'La Flaca',
-    artist: 'Jarabe de Palo',
+    title: 'Nº 5',
+    artist: 'La Flaca',
     originalKey: 'Am',
     bpm: 116,
     timeSignature: '4/4',
@@ -162,22 +165,12 @@ aquella tremenda [F]mulata tan sabrosa y tan her[E7]mosa.
 Por un [Am]beso de la Flaca daría lo [G]que fuera,
 por un [F]beso de ella, aunque sólo [E7]uno fuera.
 Por un [Am]beso de la Flaca daría lo [G]que fuera,
-por un [F]beso de ella, aunque sólo [E7]uno fuera.
-
-[Verso 2]
-Cien [Am]libras de piel y hueso, cuarenta [G]kilos de salsa,
-y en la [F]cara dos soles que sin palabras me [E7]hablan.
-Que sin palabras me [Am]dicen todo lo que calla la [G]boca,
-y una sonrisa que [F]a cualquiera vuelve [E7]loco.
-
-[Coro]
-Por un [Am]beso de la Flaca daría lo [G]que fuera,
 por un [F]beso de ella, aunque sólo [E7]uno fuera.`,
   },
   {
     id: 'song-4',
-    title: 'Tu Fidelidad',
-    artist: 'Marcos Witt',
+    title: 'Nº 6',
+    artist: 'Tu Fidelidad',
     originalKey: 'D',
     bpm: 68,
     timeSignature: '4/4',
@@ -196,18 +189,12 @@ grande [A]es tu fideli[D]dad.
 Cada ma[D]ñana se renuevan tus mise[Em]ricordias,
 inagota[A]ble es tu gracia y tu a[D]mor.
 En los mo[Bm]mentos de mayor os[Em]curidad,
-siempre bri[A]lla tu dulce ver[D]dad.
-
-[Coro]
-Tu fideli[D]dad es [Em]grande,
-tu fideli[A]dad incompa[D]rable es.
-Nadie como [Bm]tú, bendito [Em]Dios,
-grande [A]es tu fideli[D]dad.`,
+siempre bri[A]lla tu dulce ver[D]dad.`,
   },
   {
     id: 'song-5',
-    title: 'Color Esperanza',
-    artist: 'Diego Torres',
+    title: 'Nº 7',
+    artist: 'Color Esperanza',
     originalKey: 'G',
     bpm: 96,
     timeSignature: '4/4',
@@ -228,24 +215,12 @@ te ayuda[G]rá, vale la pena una vez [D]más.
 Saber que se [C]puede, que[D]rer que se [G]pueda,
 quitarse los [C]miedos, sa[D]carlos a[Em]fuera.
 Pintarse la [C]cara co[D]lor espe[G]ranza,
-tentar al fu[C]turo con [D]el cora[G]zón.
-
-[Verso 2]
-Es mejor per[G]derse que nunca emba[D]rcar,
-mejor ten[Em]tar a las cosas bri[C]llar,
-aunque te [G]duela y te cueste so[D]ñar.
-Sentirás que el [G]alma vuela por can[D]tar una vez más.
-
-[Coro]
-Saber que se [C]puede, que[D]rer que se [G]pueda,
-quitarse los [C]miedos, sa[D]carlos a[Em]fuera.
-Pintarse la [C]cara co[D]lor espe[G]ranza,
 tentar al fu[C]turo con [D]el cora[G]zón.`,
   },
   {
     id: 'song-6',
-    title: 'Rayando El Sol',
-    artist: 'Maná',
+    title: 'Nº 8',
+    artist: 'Rayando El Sol',
     originalKey: 'G',
     bpm: 85,
     timeSignature: '4/4',
@@ -262,20 +237,12 @@ me muero por [D]ti, viviendo sin [G]ti.
 
 [Coro]
 Ra[G]yando el sol, [C]desesperación,
-es más [D]fácil llegar al sol que a tu cora[G]zón.
-Me muero por [G]ti, [C]rayando el sol,
-oh, [D]no me desampares en el rincón del a[G]mor.
-
-[Verso 2]
-Apenas [G]sale el sol y ya me pongo a [C]pensar,
-si algún [D]día de estos tú me vas a es[G]cuchar.
-Buscando una [G]razón para no desmayar [C]hoy,
-esperando la [D]luz que ilumine mi [G]voz.`,
+es más [D]fácil llegar al sol que a tu cora[G]zón.`,
   },
   {
     id: 'song-7',
-    title: 'Hallelujah',
-    artist: 'Leonard Cohen (Español)',
+    title: 'Nº 9',
+    artist: 'Hallelujah',
     originalKey: 'C',
     bpm: 58,
     timeSignature: '6/8',
@@ -291,18 +258,6 @@ mas [F]no te importa la mú[G]sica, ¿ver[C]dad? [G]
 Y [C]va de cuarta a [F]quinta [G]bien,
 sube el me[Am]nor, el ma[F]yor después,
 el [G]rey perplejo com[E7]puso el Ale[Am]luya.
-
-[Coro]
-Ale[F]luya, Ale[Am]luya,
-Ale[F]luya, Ale[C]lu[G]ya... [C]
-
-[Verso 2]
-Tu [C]fe era fuerte, pero [Am]la perdiste,
-la [C]viste hermosa bañándo[Am]se allí,
-su [F]luz y el viento de la [G]noche te ven[C]ció. [G]
-Te [C]ató a la silla [F]del de[G]seo,
-rompió tu [Am]trono y cortó [F]tu pelo,
-y [G]de tus labios sa[E7]có este Ale[Am]luya.
 
 [Coro]
 Ale[F]luya, Ale[Am]luya,

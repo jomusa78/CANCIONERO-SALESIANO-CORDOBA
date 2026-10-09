@@ -101,7 +101,7 @@ export const Navbar: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={handleSearchChange}
-                placeholder="Buscar por título, verso, letra o autor..."
+                placeholder="Buscar por número (ej: 1 o Nº 1), título de canción o letra..."
                 className="w-full pl-9 pr-8 py-2 bg-slate-100 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-[#b31942] rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-rose-500/10 transition-all"
               />
               {searchQuery && (
@@ -220,7 +220,7 @@ export const Navbar: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
-              placeholder="Buscar título, verso, letra..."
+              placeholder="Buscar por número o título..."
               className="w-full pl-8 pr-7 py-1.5 bg-slate-100 focus:bg-white border border-slate-200 focus:border-[#b31942] rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/10 transition-all"
             />
             {searchQuery && (

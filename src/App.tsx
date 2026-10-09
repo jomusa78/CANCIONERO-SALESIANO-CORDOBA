@@ -103,8 +103,8 @@ const MainCatalogView: React.FC = () => {
                 aria-label="Ordenar canciones"
                 className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer text-xs"
               >
-                <option value="title">Título (A-Z)</option>
-                <option value="artist">Artista / Autor (A-Z)</option>
+                <option value="title">Por Número</option>
+                <option value="artist">Título de Canción (A-Z)</option>
                 <option value="recent">Más recientes</option>
               </select>
             </div>

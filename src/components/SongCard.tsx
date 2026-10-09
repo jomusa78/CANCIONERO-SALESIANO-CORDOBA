@@ -89,17 +89,19 @@ export const SongCard: React.FC<SongCardProps> = ({
           </button>
         </div>
 
-        {/* Title & Artist */}
+        {/* Song Number & Song Title */}
         <div 
           onClick={() => onSelect(song)}
           className="cursor-pointer mb-3"
         >
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-xs font-black tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
+              {renderHighlighted(song.title, searchQuery)}
+            </span>
+          </div>
           <h3 className="text-lg font-bold text-slate-900 group-hover:text-amber-600 transition-colors leading-snug">
-            {renderHighlighted(song.title, searchQuery)}
-          </h3>
-          <p className="text-sm font-medium text-slate-500 mt-0.5">
             {renderHighlighted(song.artist, searchQuery)}
-          </p>
+          </h3>
         </div>
 
         {/* Tags */}
@@ -215,13 +217,12 @@ export const SongListItem: React.FC<SongCardProps> = ({
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1">
-          <h3 className="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
+          <span className="text-xs font-black tracking-wider uppercase px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
             {renderHighlighted(song.title, searchQuery)}
-          </h3>
-          <span className="text-slate-400 font-medium">·</span>
-          <span className="text-sm text-slate-500 font-medium">
-            {renderHighlighted(song.artist, searchQuery)}
           </span>
+          <h3 className="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
+            {renderHighlighted(song.artist, searchQuery)}
+          </h3>
           {song.pdfUrl && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
               <FileText className="w-3 h-3 text-rose-600" /> PDF

@@ -58,15 +58,16 @@ export const SongCard: React.FC<SongCardProps> = ({
     >
       <div>
         
-        {/* Card Header: Tonality & Favorite */}
+        {/* Card Header: PDF Sheet indicator & Favorite */}
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 font-mono-chord">
-              <KeyRound className="w-3 h-3 text-amber-600" /> Tono: {song.originalKey}
-            </span>
-            {song.bpm && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">
-                <Clock className="w-3 h-3 text-slate-400" /> {song.bpm} BPM
+            {song.pdfUrl ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                <FileText className="w-3.5 h-3.5 text-rose-600" /> Partitura en PDF
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                <Music className="w-3.5 h-3.5 text-slate-500" /> Canción
               </span>
             )}
           </div>
@@ -221,9 +222,11 @@ export const SongListItem: React.FC<SongCardProps> = ({
           <span className="text-sm text-slate-500 font-medium">
             {renderHighlighted(song.artist, searchQuery)}
           </span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 font-mono-chord">
-            {song.originalKey}
-          </span>
+          {song.pdfUrl && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+              <FileText className="w-3 h-3 text-rose-600" /> PDF
+            </span>
+          )}
         </div>
 
         {searchInfo?.snippet ? (
@@ -238,11 +241,6 @@ export const SongListItem: React.FC<SongCardProps> = ({
               {tag}
             </span>
           ))}
-          {song.bpm && (
-            <span className="text-[10px] text-slate-400">
-              {song.bpm} BPM
-            </span>
-          )}
         </div>
       </div>
 

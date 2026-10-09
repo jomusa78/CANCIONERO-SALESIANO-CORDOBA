@@ -75,7 +75,8 @@ export function isSectionHeaderTag(tag: string): boolean {
 }
 
 // Extracts clean plain text without any chords for searching & copying
-export function extractPlainLyrics(content: string): string {
+export function extractPlainLyrics(content: string = ''): string {
+  if (!content) return '';
   return content
     .split('\n')
     .map(line => {

@@ -12,14 +12,17 @@ export interface Song {
   id: string;
   title: string;
   artist: string;
-  originalKey: string;
+  originalKey?: string;
   bpm?: number;
   timeSignature?: string;
   tags: string[];
-  content: string; // ChordPro format: [G]Letra con [D]acordes
+  content: string; // Lyrics / sheet text or description
   plainLyrics: string;
   createdAt: string;
   isFavorite?: boolean;
+  pdfUrl?: string; // Data URL or URL of uploaded PDF sheet
+  pdfFileName?: string;
+  pdfFileSize?: number;
 }
 
 export interface ChordSegment {

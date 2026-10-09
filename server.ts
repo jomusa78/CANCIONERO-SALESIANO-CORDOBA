@@ -18,8 +18,9 @@ const CONFIG_FILE = path.resolve(DATA_DIR, 'admin-config.json');
 
 // Memory cache for runtime
 let inMemoryPassword = process.env.ADMIN_PASSWORD || 'admin123';
+let inMemoryRecoveryEmail = process.env.ADMIN_RECOVERY_EMAIL || 'jomusa78@gmail.com';
 
-// Load stored password on server start
+// Load stored password and recovery email on server start
 try {
   if (fs.existsSync(CONFIG_FILE)) {
     const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
@@ -28,28 +29,51 @@ try {
       inMemoryPassword = parsed.adminPassword.trim();
       console.log('[Server] Loaded admin password from server configuration file.');
     }
+    if (parsed.recoveryEmail && typeof parsed.recoveryEmail === 'string') {
+      inMemoryRecoveryEmail = parsed.recoveryEmail.trim();
+      console.log('[Server] Loaded recovery email from server configuration file:', inMemoryRecoveryEmail);
+    }
   }
 } catch (err) {
   console.warn('[Server] Could not read admin config file, using default/env password:', err);
 }
 
-function saveServerPassword(newPass: string): boolean {
+function saveServerConfig(updates: { adminPassword?: string; recoveryEmail?: string }): boolean {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({
-      adminPassword: newPass,
-      updatedAt: new Date().toISOString()
-    }, null, 2), 'utf-8');
-    inMemoryPassword = newPass;
+    let currentData: any = {};
+    if (fs.existsSync(CONFIG_FILE)) {
+      try {
+        currentData = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+      } catch {
+        currentData = {};
+      }
+    }
+
+    if (updates.adminPassword) {
+      inMemoryPassword = updates.adminPassword;
+      currentData.adminPassword = updates.adminPassword;
+    }
+    if (updates.recoveryEmail !== undefined) {
+      inMemoryRecoveryEmail = updates.recoveryEmail;
+      currentData.recoveryEmail = updates.recoveryEmail;
+    }
+    currentData.updatedAt = new Date().toISOString();
+
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(currentData, null, 2), 'utf-8');
     return true;
   } catch (err) {
     console.error('[Server] Error saving admin config to disk:', err);
-    // Still update in memory for active server session
-    inMemoryPassword = newPass;
+    if (updates.adminPassword) inMemoryPassword = updates.adminPassword;
+    if (updates.recoveryEmail !== undefined) inMemoryRecoveryEmail = updates.recoveryEmail;
     return false;
   }
+}
+
+function saveServerPassword(newPass: string): boolean {
+  return saveServerConfig({ adminPassword: newPass });
 }
 
 // ----------------------------------------------------
@@ -118,11 +142,143 @@ app.post('/api/admin/change-password', (req, res) => {
   });
 });
 
+// Helper function to mask email: e.g. "jomusa78@gmail.com" -> "j***8@gmail.com"
+function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return 'correo configurado';
+  const [user, domain] = email.split('@');
+  if (user.length <= 2) {
+    return `${user[0]}*@${domain}`;
+  }
+  return `${user[0]}***${user[user.length - 1]}@${domain}`;
+}
+
+// Memory store for verification recovery codes: { code: string, expires: number }
+let pendingRecovery: { code: string; expires: number; targetEmail: string } | null = null;
+
+// Request password recovery to email
+app.post('/api/admin/recover-request', (req, res) => {
+  const { email } = req.body || {};
+
+  const configuredEmail = inMemoryRecoveryEmail.trim().toLowerCase();
+  const inputEmail = (email && typeof email === 'string') ? email.trim().toLowerCase() : '';
+
+  // If email was provided, check if it matches configured email
+  if (inputEmail && inputEmail !== configuredEmail) {
+    return res.status(400).json({
+      success: false,
+      message: `El correo ingresado no coincide con el correo de recuperación registrado (${maskEmail(configuredEmail)}).`
+    });
+  }
+
+  // Generate 6-digit recovery code
+  const recoveryCode = Math.floor(100000 + Math.random() * 900000).toString();
+  pendingRecovery = {
+    code: recoveryCode,
+    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    targetEmail: configuredEmail,
+  };
+
+  console.log(`[Server] ==============================================`);
+  console.log(`[Server] SOLICITUD DE RECUPERACIÓN DE CONTRASEÑA`);
+  console.log(`[Server] Correo de destino: ${configuredEmail}`);
+  console.log(`[Server] Código de recuperación de un solo uso: ${recoveryCode}`);
+  console.log(`[Server] Contraseña actual del sistema: ${inMemoryPassword}`);
+  console.log(`[Server] ==============================================`);
+
+  return res.json({
+    success: true,
+    maskedEmail: maskEmail(configuredEmail),
+    // Send preview code for easy immediate retrieval in environments without external SMTP
+    previewRecoveryCode: recoveryCode,
+    message: `Se ha generado el código de recuperación para ${maskEmail(configuredEmail)}. Utiliza el código para restablecer la contraseña.`
+  });
+});
+
+// Verify recovery code and reset password
+app.post('/api/admin/recover-reset', (req, res) => {
+  const { code, newPassword } = req.body || {};
+
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Ingresa el código de recuperación de 6 dígitos.'
+    });
+  }
+
+  if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 4) {
+    return res.status(400).json({
+      success: false,
+      message: 'La nueva contraseña debe tener al menos 4 caracteres.'
+    });
+  }
+
+  if (!pendingRecovery || Date.now() > pendingRecovery.expires) {
+    return res.status(400).json({
+      success: false,
+      message: 'El código de recuperación ha expirado o no es válido. Solicita uno nuevo.'
+    });
+  }
+
+  if (pendingRecovery.code !== code.trim()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Código de recuperación incorrecto.'
+    });
+  }
+
+  // Reset password
+  saveServerPassword(newPassword.trim());
+  pendingRecovery = null; // Invalidate code
+
+  return res.json({
+    success: true,
+    message: 'Contraseña restablecida con éxito en el servidor web. Ya puedes iniciar sesión con tu nueva clave.'
+  });
+});
+
+// Configure or update recovery email (requires admin authentication or allows admin to update)
+app.post('/api/admin/update-recovery-email', (req, res) => {
+  const { password, newEmail } = req.body || {};
+
+  if (!password || password.trim() !== inMemoryPassword) {
+    return res.status(401).json({
+      success: false,
+      message: 'Contraseña de administrador requerida para cambiar el correo de recuperación.'
+    });
+  }
+
+  if (!newEmail || typeof newEmail !== 'string' || !newEmail.includes('@')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Por favor introduce una dirección de correo electrónico válida.'
+    });
+  }
+
+  saveServerConfig({ recoveryEmail: newEmail.trim().toLowerCase() });
+
+  return res.json({
+    success: true,
+    recoveryEmail: newEmail.trim().toLowerCase(),
+    maskedEmail: maskEmail(newEmail.trim().toLowerCase()),
+    message: 'Correo de recuperación actualizado con éxito en el servidor.'
+  });
+});
+
+// Get public recovery info (masked email)
+app.get('/api/admin/recovery-info', (_req, res) => {
+  res.json({
+    hasRecoveryEmail: !!inMemoryRecoveryEmail,
+    maskedEmail: maskEmail(inMemoryRecoveryEmail),
+  });
+});
+
 // Server status check
 app.get('/api/admin/status', (_req, res) => {
   res.json({ 
     status: 'ok', 
     serverConfigured: true, 
+    hasRecoveryEmail: !!inMemoryRecoveryEmail,
+    maskedEmail: maskEmail(inMemoryRecoveryEmail),
     timestamp: new Date().toISOString() 
   });
 });

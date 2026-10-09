@@ -4,6 +4,8 @@ import { User } from '../types';
 interface AuthResult {
   success: boolean;
   message?: string;
+  previewRecoveryCode?: string;
+  maskedEmail?: string;
 }
 
 interface AuthContextType {
@@ -13,11 +15,15 @@ interface AuthContextType {
   loginAsReader: () => void;
   loginAsAdmin: (passwordOrName: string, possibleCode?: string) => Promise<AuthResult>;
   updateAdminCode: (currentPassword: string, newPassword: string) => Promise<AuthResult>;
+  requestPasswordRecovery: (email?: string) => Promise<AuthResult>;
+  resetPasswordWithCode: (code: string, newPassword: string) => Promise<AuthResult>;
+  updateRecoveryEmail: (password: string, newEmail: string) => Promise<AuthResult>;
   logout: () => void;
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
   serverStatus: 'connected' | 'checking' | 'offline';
+  maskedRecoveryEmail: string;
 }
 
 const SESSION_STORAGE_KEY = 'cancionero_admin_session_active';
@@ -62,14 +68,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [serverStatus, setServerStatus] = useState<'connected' | 'checking' | 'offline'>('checking');
+  const [maskedRecoveryEmail, setMaskedRecoveryEmail] = useState<string>('jom***8@gmail.com');
 
   // Verify server connectivity on mount
   useEffect(() => {
     let isMounted = true;
     fetch('/api/admin/status')
-      .then(res => {
+      .then(res => res.json())
+      .then(data => {
         if (isMounted) {
-          setServerStatus(res.ok ? 'connected' : 'offline');
+          setServerStatus('connected');
+          if (data?.maskedEmail) {
+            setMaskedRecoveryEmail(data.maskedEmail);
+          }
         }
       })
       .catch(() => {
@@ -210,6 +221,140 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Request password recovery
+  const requestPasswordRecovery = async (email?: string): Promise<AuthResult> => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/admin/recover-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email?.trim() || '' }),
+      });
+
+      const data = await response.json().catch(() => null);
+      setIsLoading(false);
+
+      if (response.ok && data?.success) {
+        if (data.maskedEmail) {
+          setMaskedRecoveryEmail(data.maskedEmail);
+        }
+        return {
+          success: true,
+          message: data.message || 'Código de recuperación generado.',
+          previewRecoveryCode: data.previewRecoveryCode,
+          maskedEmail: data.maskedEmail,
+        };
+      } else {
+        return {
+          success: false,
+          message: data?.message || 'No se pudo generar la solicitud de recuperación.',
+        };
+      }
+    } catch (err) {
+      setIsLoading(false);
+      return {
+        success: false,
+        message: 'Error al conectar con el servidor para la recuperación.',
+      };
+    }
+  };
+
+  // Reset password using recovery code
+  const resetPasswordWithCode = async (code: string, newPassword: string): Promise<AuthResult> => {
+    if (!code.trim()) {
+      return { success: false, message: 'Ingresa el código de recuperación.' };
+    }
+    if (!newPassword.trim() || newPassword.trim().length < 4) {
+      return { success: false, message: 'La nueva contraseña debe tener al menos 4 caracteres.' };
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/admin/recover-reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: code.trim(),
+          newPassword: newPassword.trim(),
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      setIsLoading(false);
+
+      if (response.ok && data?.success) {
+        return {
+          success: true,
+          message: data.message || 'Contraseña restablecida con éxito.',
+        };
+      } else {
+        return {
+          success: false,
+          message: data?.message || 'Código incorrecto o expirado.',
+        };
+      }
+    } catch (err) {
+      setIsLoading(false);
+      return {
+        success: false,
+        message: 'Error al comunicarse con el servidor.',
+      };
+    }
+  };
+
+  // Update designated recovery email
+  const updateRecoveryEmail = async (password: string, newEmail: string): Promise<AuthResult> => {
+    if (!password.trim()) {
+      return { success: false, message: 'Ingresa la contraseña actual de administrador.' };
+    }
+    if (!newEmail.trim() || !newEmail.includes('@')) {
+      return { success: false, message: 'Ingresa un correo electrónico válido.' };
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/admin/update-recovery-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password: password.trim(),
+          newEmail: newEmail.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      setIsLoading(false);
+
+      if (response.ok && data?.success) {
+        if (data.maskedEmail) {
+          setMaskedRecoveryEmail(data.maskedEmail);
+        }
+        return {
+          success: true,
+          message: data.message || 'Correo de recuperación actualizado con éxito.',
+          maskedEmail: data.maskedEmail,
+        };
+      } else {
+        return {
+          success: false,
+          message: data?.message || 'Error al actualizar el correo de recuperación.',
+        };
+      }
+    } catch (err) {
+      setIsLoading(false);
+      return {
+        success: false,
+        message: 'Error al comunicarse con el servidor.',
+      };
+    }
+  };
+
   const logout = () => {
     try {
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
@@ -238,11 +383,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginAsReader,
         loginAsAdmin,
         updateAdminCode,
+        requestPasswordRecovery,
+        resetPasswordWithCode,
+        updateRecoveryEmail,
         logout,
         isAuthModalOpen,
         openAuthModal,
         closeAuthModal,
         serverStatus,
+        maskedRecoveryEmail,
       }}
     >
       {children}

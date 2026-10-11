@@ -280,6 +280,58 @@ export const handler = async (event: NetlifyEvent) => {
     };
   }
 
+  // Route: /api/songs/insert (INSERT creating new record with automatic ID)
+  if (path.includes('/songs/insert') && event.httpMethod === 'POST') {
+    const timestamp = Date.now();
+    const autoId = body.id || `song-${timestamp}-${Math.random().toString(36).substring(2, 9)}`;
+    let pdfFileName = body.pdfFileName;
+    if (pdfFileName && !pdfFileName.includes('_')) {
+      const ext = pdfFileName.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+      const base = pdfFileName.replace(/\.pdf$/i, '');
+      pdfFileName = `${base}_${timestamp}${ext}`;
+    }
+
+    const insertedSong = {
+      ...body,
+      id: autoId,
+      pdfFileName: pdfFileName || body.pdfFileName,
+      createdAt: body.createdAt || new Date().toISOString(),
+    };
+    delete insertedSong.action;
+    delete insertedSong.isInsert;
+
+    return {
+      statusCode: 201,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        operation: 'INSERT',
+        song: insertedSong,
+      })
+    };
+  }
+
+  // Route: /api/songs
+  if (path.endsWith('/songs')) {
+    if (event.httpMethod === 'POST') {
+      const isInsert = body.action === 'insert' || body.isInsert === true;
+      const timestamp = Date.now();
+      const autoId = (isInsert || !body.id)
+        ? `song-${timestamp}-${Math.random().toString(36).substring(2, 9)}`
+        : body.id;
+
+      return {
+        statusCode: isInsert ? 201 : 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          operation: isInsert ? 'INSERT' : 'UPDATE',
+          song: { ...body, id: autoId },
+        })
+      };
+    }
+  }
+
   // Route: /api/admin/status or default
   return {
     statusCode: 200,

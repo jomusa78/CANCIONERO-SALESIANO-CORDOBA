@@ -326,14 +326,89 @@ app.get('/api/songs', (_req, res) => {
   });
 });
 
-// POST song (bulk replace or single upsert)
+// POST /api/songs/insert: Executes an INSERT (push) creating a new record with automatic ID (never UPDATE/replace)
+app.post(['/api/songs/insert', '/api/songs/new'], (req, res) => {
+  const payload = req.body || {};
+  let currentSongs = getServerSongs() || [];
+
+  const timestamp = Date.now();
+  const uuidPart = Math.random().toString(36).substring(2, 9);
+  const autoId = payload.id || `song-${timestamp}-${uuidPart}`;
+
+  // Ensure unique timestamp/UUID in PDF file name if uploaded
+  let pdfFileName = payload.pdfFileName;
+  if (pdfFileName && !pdfFileName.includes('_')) {
+    const ext = pdfFileName.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+    const base = pdfFileName.replace(/\.pdf$/i, '');
+    pdfFileName = `${base}_${timestamp}_${uuidPart}${ext}`;
+  }
+
+  const newSong = {
+    ...payload,
+    id: autoId,
+    pdfFileName: pdfFileName || payload.pdfFileName,
+    createdAt: payload.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  delete newSong.action;
+  delete newSong.isInsert;
+
+  // Strict INSERT / push operation: prepends as a brand new record
+  currentSongs = [newSong, ...currentSongs];
+  saveServerSongs(currentSongs);
+
+  console.log(`[Server DB] Inserción (INSERT/push) ejecutada: nuevo registro con ID automático ${newSong.id} (PDF: ${newSong.pdfFileName || 'ninguno'})`);
+  return res.status(201).json({
+    success: true,
+    operation: 'INSERT',
+    song: newSong,
+    total: currentSongs.length,
+  });
+});
+
+// POST song (bulk replace, explicit INSERT, or single upsert)
 app.post('/api/songs', (req, res) => {
   const payload = req.body;
   if (Array.isArray(payload)) {
     saveServerSongs(payload);
     return res.json({ success: true, count: payload.length });
-  } else if (payload && typeof payload === 'object' && payload.id) {
+  } else if (payload && typeof payload === 'object') {
     let currentSongs = getServerSongs() || [];
+
+    // If explicit INSERT action requested or isInsert flag set: always create new record with auto ID
+    const isExplicitInsert = payload.action === 'insert' || payload.isInsert === true || Boolean(req.query.insert);
+
+    if (isExplicitInsert || !payload.id) {
+      const timestamp = Date.now();
+      const uuidPart = Math.random().toString(36).substring(2, 9);
+      const autoId = payload.id || `song-${timestamp}-${uuidPart}`;
+
+      let pdfFileName = payload.pdfFileName;
+      if (pdfFileName && !pdfFileName.includes('_')) {
+        const ext = pdfFileName.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+        const base = pdfFileName.replace(/\.pdf$/i, '');
+        pdfFileName = `${base}_${timestamp}_${uuidPart}${ext}`;
+      }
+
+      const newSong = {
+        ...payload,
+        id: autoId,
+        pdfFileName: pdfFileName || payload.pdfFileName,
+        createdAt: payload.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      delete newSong.action;
+      delete newSong.isInsert;
+
+      // Strict INSERT / push
+      currentSongs = [newSong, ...currentSongs];
+      saveServerSongs(currentSongs);
+      console.log(`[Server DB] Inserción (INSERT/push) ejecutada en /api/songs para nuevo registro: ${newSong.id}`);
+      return res.status(201).json({ success: true, operation: 'INSERT', song: newSong, total: currentSongs.length });
+    }
+
+    // Otherwise, update existing song by ID or append if not present
     const index = currentSongs.findIndex((s: any) => s.id === payload.id);
     if (index >= 0) {
       currentSongs[index] = { ...currentSongs[index], ...payload, updatedAt: new Date().toISOString() };

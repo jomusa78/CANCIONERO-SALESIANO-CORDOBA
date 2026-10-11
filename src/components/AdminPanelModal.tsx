@@ -235,18 +235,37 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     setIsProcessingPdf(true);
     setPdfError('');
 
+    // Generate unique identifier (UUID or Timestamp) for the PDF file name
+    const ext = file.name.toLowerCase().endsWith('.pdf')
+      ? '.pdf'
+      : (file.name.substring(file.name.lastIndexOf('.')) || '.pdf');
+    const rawBase = file.name.substring(
+      0,
+      file.name.lastIndexOf('.') > 0 ? file.name.lastIndexOf('.') : file.name.length
+    );
+    const cleanBase = rawBase.trim().replace(/[^a-zA-Z0-9_\-\s]/g, '').replace(/\s+/g, '_') || 'cancion';
+    const timestamp = Date.now();
+    const uuidPart = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).substring(2, 8);
+    const uniqueFileName = `${cleanBase}_${timestamp}_${uuidPart}${ext}`;
+
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
       setPdfUrl(result);
-      setPdfFileName(file.name);
+      setPdfFileName(uniqueFileName);
       setPdfFileSize(file.size);
       setIsProcessingPdf(false);
 
+      // When uploading a PDF, reset editing state to guarantee an INSERT/push of a new record
+      if (editingSong) {
+        setEditingSong(null);
+      }
+
       // Auto-populate song title (artist) if empty from filename
       if (!artist.trim()) {
-        const cleanName = file.name
-          .replace(/\.pdf$/i, '')
+        const cleanName = rawBase
           .replace(/[-_]/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
@@ -319,8 +338,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
     setValidationError('');
 
-    if (editingSong) {
-      updateSong(editingSong.id, {
+    // When saving a song with a PDF (or adding a song), ALWAYS execute an insertion (INSERT / push)
+    // creating a brand new record with automatic ID, NEVER an UPDATE or replacement of an existing object
+    if (pdfUrl || !editingSong) {
+      addSong({
         title: title.trim(),
         artist: artist.trim(),
         tags,
@@ -334,22 +355,21 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
         setSaveSuccess(false);
         setEditingSong(null);
         setActiveTab('list');
+        resetForm();
       }, 900);
     } else {
-      addSong({
+      // Only for editing existing metadata when no PDF is attached/uploaded
+      updateSong(editingSong.id, {
         title: title.trim(),
         artist: artist.trim(),
         tags,
         content: content.trim(),
-        pdfUrl,
-        pdfFileName,
-        pdfFileSize,
       });
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
+        setEditingSong(null);
         setActiveTab('list');
-        resetForm();
       }, 900);
     }
   };
@@ -599,9 +619,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         <FileCheck className="w-6 h-6" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded">
                             PDF Cargado
+                          </span>
+                          <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            ID Único Asignado
                           </span>
                           {pdfFileSize && (
                             <span className="text-xs text-slate-400">
@@ -609,7 +633,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                             </span>
                           )}
                         </div>
-                        <h4 className="font-bold text-slate-900 text-sm mt-0.5 break-all">
+                        <h4 className="font-mono text-xs sm:text-sm font-bold text-slate-900 mt-1 break-all bg-slate-50 p-1.5 rounded border border-slate-200">
                           {pdfFileName || 'archivo-partitura.pdf'}
                         </h4>
                       </div>

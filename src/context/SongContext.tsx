@@ -237,27 +237,35 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
   }, [songs, selectedTag, searchQuery, sortBy]);
 
-  // Persist single song addition to Server API and Firestore Cloud
+  // Persist single song addition to Server API and Firestore Cloud (INSERT / push)
   const persistAddSong = async (song: Song) => {
-    // 1. Server persistence
+    // 1. Server persistence: execute INSERT / push creating a new record
     try {
-      await fetch('/api/songs', {
+      const res = await fetch('/api/songs/insert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(song),
+        body: JSON.stringify({ ...song, action: 'insert', isInsert: true }),
       });
-      console.log('[Server] Song saved to server database:', song.id);
+      if (!res.ok) {
+        // Fallback to /api/songs with explicit insert action
+        await fetch('/api/songs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...song, action: 'insert', isInsert: true }),
+        });
+      }
+      console.log('[Server DB] Inserción (INSERT/push) ejecutada en base de datos con ID automático:', song.id);
     } catch (err) {
-      console.warn('[Server] Could not persist song to server:', err);
+      console.warn('[Server] Notice executing insert on server:', err);
     }
 
-    // 2. Cloud Firestore persistence
+    // 2. Cloud Firestore persistence: execute INSERT with new automatic document ID
     try {
       const docRef = doc(db, 'songs', song.id);
       await setDoc(docRef, { ...song, isPublic: true });
-      console.log('[Firestore] Song saved to cloud Firestore:', song.id);
+      console.log('[Firestore DB] Inserción (INSERT) de nuevo registro completada en Firestore:', song.id);
     } catch (err) {
-      console.warn('[Firestore] Notice saving song to cloud:', err);
+      console.warn('[Firestore] Notice inserting song to cloud:', err);
     }
   };
 
@@ -308,14 +316,35 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addSong = (songData: Omit<Song, 'id' | 'createdAt' | 'plainLyrics'>) => {
+    // Generate unique automatic ID using timestamp and UUID
+    const timestamp = Date.now();
+    const uuidPart = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).substring(2, 8);
+    const autoId = `song-${timestamp}-${uuidPart}`;
+
+    // Guarantee that PDF file name has unique identifier (UUID/timestamp) assigned
+    let verifiedPdfFileName = songData.pdfFileName;
+    if (verifiedPdfFileName && !verifiedPdfFileName.includes('_')) {
+      const ext = verifiedPdfFileName.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+      const base = verifiedPdfFileName.replace(/\.pdf$/i, '');
+      verifiedPdfFileName = `${base}_${timestamp}_${uuidPart}${ext}`;
+    }
+
     const newSong: Song = {
       ...songData,
-      id: `song-${Date.now()}`,
+      id: autoId,
+      pdfFileName: verifiedPdfFileName,
       createdAt: new Date().toISOString(),
       plainLyrics: extractPlainLyrics(songData.content),
     };
+
+    // Push new record into state (unshift to place newest song at top)
     setSongs(prev => [newSong, ...prev]);
+
+    // Execute database insertion (INSERT/push)
     persistAddSong(newSong);
+
     return newSong;
   };
 

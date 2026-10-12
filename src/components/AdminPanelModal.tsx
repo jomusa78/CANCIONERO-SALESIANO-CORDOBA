@@ -64,7 +64,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   // Form states
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
-  const [tags, setTags] = useState<string[]>(['Salesiano']);
+  const [tags, setTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [content, setContent] = useState('');
   const [pdfUrl, setPdfUrl] = useState<string | undefined>(undefined);
@@ -94,7 +94,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     setEditingSong(null);
     setTitle(getNextSongNumber());
     setArtist('');
-    setTags(['Salesiano']);
+    setTags([]);
     setNewTagInput('');
     setContent('');
     setPdfUrl(undefined);
@@ -108,7 +108,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const resetForm = () => {
     setTitle(getNextSongNumber());
     setArtist('');
-    setTags(['Salesiano']);
+    setTags([]);
     setNewTagInput('');
     setContent('');
     setPdfUrl(undefined);
@@ -869,8 +869,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-amber-700 italic">
-                      No hay etiquetas asignadas. Selecciona una de las sugeridas o escribe una nueva.
+                    <p className="text-xs text-slate-500 italic">
+                      Ninguna etiqueta asignada por defecto (opcional). Puedes seleccionar alguna de las sugerencias abajo si lo deseas.
                     </p>
                   )}
                 </div>

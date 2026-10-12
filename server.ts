@@ -365,7 +365,8 @@ app.post(['/api/songs/insert', '/api/songs/new'], (req, res) => {
       const base64Data = payload.pdfUrl.replace(/^data:[^;]+;base64,/, '');
       const targetFile = path.resolve(UPLOADS_DIR, pdfFileName);
       fs.writeFileSync(targetFile, Buffer.from(base64Data, 'base64'));
-      newSong.pdfUrl = `/uploads/${encodeURIComponent(pdfFileName)}`;
+      newSong.pdfUrl = payload.pdfUrl;
+      newSong.pdfPath = `/uploads/${encodeURIComponent(pdfFileName)}`;
       newSong.pdfFileSize = Buffer.byteLength(base64Data, 'base64');
       console.log(`[Server] Guardado archivo PDF en disco: ${targetFile}`);
     } catch (pdfErr) {
@@ -418,7 +419,8 @@ app.put(['/api/songs/:id', '/api/songs/update/:id'], (req, res) => {
       const base64Data = payload.pdfUrl.replace(/^data:[^;]+;base64,/, '');
       const targetFile = path.resolve(UPLOADS_DIR, pdfFileName);
       fs.writeFileSync(targetFile, Buffer.from(base64Data, 'base64'));
-      songToSave.pdfUrl = `/uploads/${encodeURIComponent(pdfFileName)}`;
+      songToSave.pdfUrl = payload.pdfUrl;
+      songToSave.pdfPath = `/uploads/${encodeURIComponent(pdfFileName)}`;
       songToSave.pdfFileName = pdfFileName;
       songToSave.pdfFileSize = Buffer.byteLength(base64Data, 'base64');
       console.log(`[Server] Guardado archivo PDF modificado en disco: ${targetFile}`);

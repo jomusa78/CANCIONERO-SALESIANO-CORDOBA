@@ -12,6 +12,7 @@ import {
   Clock,
   KeyRound
 } from 'lucide-react';
+import { openPdfDirectly } from '../utils/pdfViewer';
 
 interface SongCardProps {
   song: Song;
@@ -136,12 +137,19 @@ export const SongCard: React.FC<SongCardProps> = ({
         <button
           id={`view-song-${song.id}`}
           type="button"
-          onClick={() => onSelect(song)}
-          className="flex-1 py-2 px-3 text-xs sm:text-sm font-semibold text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (song.pdfUrl) {
+              openPdfDirectly(song.pdfUrl, song.pdfFileName);
+            }
+            onSelect(song);
+          }}
+          className="flex-1 py-2 px-3 text-xs sm:text-sm font-bold text-white bg-[#b31942] hover:bg-[#991538] rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+          title="Abrir PDF directamente desde el catálogo"
         >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Ver partitura PDF</span>
-          <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+          <FileText className="w-4 h-4" />
+          <span>Abrir PDF</span>
+          <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-75" />
         </button>
 
         {/* Admin CRUD controls */}
@@ -261,11 +269,18 @@ export const SongListItem: React.FC<SongCardProps> = ({
 
         <button
           type="button"
-          onClick={() => onSelect(song)}
-          className="px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (song.pdfUrl) {
+              openPdfDirectly(song.pdfUrl, song.pdfFileName);
+            }
+            onSelect(song);
+          }}
+          className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#b31942] hover:bg-[#991538] rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+          title="Abrir PDF directamente desde el catálogo"
         >
-          <Music className="w-3.5 h-3.5" />
-          <span>Ver</span>
+          <FileText className="w-3.5 h-3.5" />
+          <span>Abrir PDF</span>
         </button>
 
         {isAdmin && (

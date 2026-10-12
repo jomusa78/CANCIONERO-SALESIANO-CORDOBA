@@ -23,8 +23,10 @@ import {
   Upload,
   FileText,
   FileCheck,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
+import { openPdfDirectly } from '../utils/pdfViewer';
 
 interface AdminPanelModalProps {
   isOpen: boolean;
@@ -589,6 +591,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {song.pdfUrl && (
+                              <button
+                                type="button"
+                                onClick={() => openPdfDirectly(song.pdfUrl, song.pdfFileName)}
+                                className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Abrir PDF directamente"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -715,6 +727,17 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {pdfUrl && (
+                        <button
+                          type="button"
+                          onClick={() => openPdfDirectly(pdfUrl, pdfFileName)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#b31942] hover:bg-[#991538] text-white transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          title="Abrir y verificar PDF"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Abrir PDF</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}

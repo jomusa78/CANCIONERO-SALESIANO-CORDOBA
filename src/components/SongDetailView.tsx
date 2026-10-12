@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Song } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSongs } from '../context/SongContext';
@@ -13,6 +13,7 @@ import {
   BookOpen,
   AlertCircle
 } from 'lucide-react';
+import { getPdfBlobUrl, openPdfDirectly } from '../utils/pdfViewer';
 
 interface SongDetailViewProps {
   song: Song;
@@ -28,6 +29,17 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
   const currentIndex = songs.findIndex(s => s.id === song.id);
   const prevSong = currentIndex > 0 ? songs[currentIndex - 1] : null;
   const nextSong = currentIndex < songs.length - 1 ? songs[currentIndex + 1] : null;
+
+  // Convert base64 or Data URI into a safe, same-origin Blob URL for embedded iframe viewing
+  const pdfBlobUrl = useMemo(() => {
+    return getPdfBlobUrl(song.pdfUrl);
+  }, [song.pdfUrl]);
+
+  const handleOpenPdf = () => {
+    if (song.pdfUrl) {
+      openPdfDirectly(song.pdfUrl, song.pdfFileName);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
@@ -121,19 +133,18 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
             </h1>
           </div>
 
-          {/* Quick PDF Action: Open Full Screen (NO download button) */}
+          {/* Quick PDF Action: Open PDF (replaces old "Pantalla Completa") */}
           {song.pdfUrl && (
             <div className="flex items-center gap-2 shrink-0 pt-1">
-              <a
-                href={song.pdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors"
-                title="Abrir partitura en ventana completa"
+              <button
+                type="button"
+                onClick={handleOpenPdf}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#b31942] hover:bg-[#991538] text-white text-xs sm:text-sm font-bold shadow-xs transition-colors cursor-pointer"
+                title="Abrir archivo PDF"
               >
                 <ExternalLink className="w-4 h-4" />
-                <span>Pantalla Completa</span>
-              </a>
+                <span>Abrir PDF</span>
+              </button>
             </div>
           )}
         </div>
@@ -149,23 +160,53 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
                 {song.pdfFileName || `${song.title} - ${song.artist}.pdf`}
               </span>
             </div>
-            <a
-              href={song.pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-rose-700 hover:text-rose-900 font-semibold inline-flex items-center gap-1 shrink-0 ml-2"
+            <button
+              type="button"
+              onClick={handleOpenPdf}
+              className="text-[#b31942] hover:text-[#991538] font-bold text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer shrink-0 ml-2"
+              title="Abrir PDF en pestaña independiente"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Abrir en ventana completa</span>
-            </a>
+              <span>Abrir PDF</span>
+            </button>
           </div>
 
-          <div className="w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100 min-h-[650px] h-[78vh]">
-            <iframe
-              src={song.pdfUrl}
-              title={`Partitura PDF - ${song.title} ${song.artist}`}
-              className="w-full h-full border-none"
-            />
+          {/* PDF Frame */}
+          <div className="w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100 min-h-[650px] h-[78vh] relative">
+            {pdfBlobUrl ? (
+              <iframe
+                src={pdfBlobUrl}
+                title={`Partitura PDF - ${song.title} ${song.artist}`}
+                className="w-full h-full border-none"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                <FileText className="w-12 h-12 text-slate-400 mb-3" />
+                <p className="text-sm font-semibold text-slate-700 mb-2">
+                  Cargando partitura PDF...
+                </p>
+                <button
+                  type="button"
+                  onClick={handleOpenPdf}
+                  className="px-4 py-2 rounded-xl bg-[#b31942] text-white text-xs font-bold"
+                >
+                  Abrir PDF
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Direct open notice bar */}
+          <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-600 bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200">
+            <span>Visualización de partitura PDF directa en el cancionero.</span>
+            <button
+              type="button"
+              onClick={handleOpenPdf}
+              className="text-[#b31942] hover:text-[#991538] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Abrir PDF en visor externo</span>
+            </button>
           </div>
         </div>
       ) : (

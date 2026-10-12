@@ -338,7 +338,7 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         const data = await res.json().catch(() => null);
         console.log('[Server DB] Inserción (INSERT/push) completada en servidor local:', song.id);
-        if (data?.song?.pdfUrl && data.song.pdfUrl !== song.pdfUrl) {
+        if (data?.song?.pdfUrl && !song.pdfUrl?.startsWith('data:') && data.song.pdfUrl !== song.pdfUrl) {
           setSongs(prev => prev.map(s => (s.id === song.id ? { ...s, pdfUrl: data.song.pdfUrl } : s)));
         }
       } else {
@@ -391,7 +391,7 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         const data = await res.json().catch(() => null);
         console.log('[Server DB] Canción modificada con éxito sin duplicar (ID:', id, ')');
-        if (data?.song?.pdfUrl && data.song.pdfUrl !== updatedSong.pdfUrl) {
+        if (data?.song?.pdfUrl && !updatedSong.pdfUrl?.startsWith('data:') && data.song.pdfUrl !== updatedSong.pdfUrl) {
           setSongs(prev => prev.map(s => (s.id === id ? { ...s, pdfUrl: data.song.pdfUrl } : s)));
         }
       }

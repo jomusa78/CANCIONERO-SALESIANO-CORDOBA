@@ -11,7 +11,6 @@ import {
   Eye, 
   EyeOff, 
   ShieldAlert, 
-  RotateCcw, 
   Check, 
   Tag as TagIcon,
   Music,
@@ -48,7 +47,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     updateSong, 
     editingSong, 
     setEditingSong, 
-    resetDefaultSongs,
     setSelectedSong 
   } = useSongs();
 
@@ -505,18 +503,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               </button>
             )}
           </div>
-
-          {activeTab === 'list' && (
-            <button
-              type="button"
-              onClick={resetDefaultSongs}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 py-1.5 px-2.5 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
-              title="Restaura las canciones de ejemplo iniciales"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Restablecer ejemplos</span>
-            </button>
-          )}
         </div>
 
         {/* Modal Content Body */}

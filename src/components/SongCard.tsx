@@ -3,16 +3,11 @@ import { Song, SearchMatchInfo } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSongs } from '../context/SongContext';
 import { 
-  Music, 
   Heart, 
   Edit3, 
-  Trash2, 
-  ChevronRight, 
-  FileText,
-  Clock,
-  KeyRound
+  Trash2,
+  FileText
 } from 'lucide-react';
-import { openPdfDirectly } from '../utils/pdfViewer';
 
 interface SongCardProps {
   song: Song;
@@ -55,20 +50,21 @@ export const SongCard: React.FC<SongCardProps> = ({
   return (
     <div 
       id={`song-card-${song.id}`}
-      className="group relative bg-white border border-slate-200 hover:border-amber-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+      onClick={() => onSelect(song)}
+      className="group relative bg-white border border-slate-200 hover:border-[#b31942]/60 hover:shadow-md rounded-2xl p-5 shadow-xs transition-all flex flex-col justify-between cursor-pointer"
+      title={`Hacer clic para ver partitura de ${song.artist}`}
     >
       <div>
         
-        {/* Card Header: PDF Sheet indicator & Favorite */}
+        {/* Card Header: Number + Favorite Button */}
         <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {song.pdfUrl ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                <FileText className="w-3.5 h-3.5 text-rose-600" /> Partitura en PDF
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                <Music className="w-3.5 h-3.5 text-slate-500" /> Canción
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black tracking-wider uppercase px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-200/80">
+              {renderHighlighted(song.title, searchQuery)}
+            </span>
+            {song.pdfUrl && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                <FileText className="w-3 h-3 text-slate-400" /> Partitura
               </span>
             )}
           </div>
@@ -90,23 +86,15 @@ export const SongCard: React.FC<SongCardProps> = ({
           </button>
         </div>
 
-        {/* Song Number & Song Title */}
-        <div 
-          onClick={() => onSelect(song)}
-          className="cursor-pointer mb-3"
-        >
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-xs font-black tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
-              {renderHighlighted(song.title, searchQuery)}
-            </span>
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 group-hover:text-amber-600 transition-colors leading-snug">
+        {/* Song Name / Title (Clicking opens the song) */}
+        <div className="mb-3">
+          <h3 className="text-lg font-bold text-slate-900 group-hover:text-[#b31942] transition-colors leading-snug">
             {renderHighlighted(song.artist, searchQuery)}
           </h3>
         </div>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-2">
           {song.tags.map(tag => (
             <span
               key={tag}
@@ -119,10 +107,7 @@ export const SongCard: React.FC<SongCardProps> = ({
 
         {/* Semantic Lyric Match Snippet if matched inside lyrics */}
         {searchInfo?.snippet && (
-          <div className="mb-4 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900">
-            <div className="flex items-center gap-1 font-semibold text-[11px] text-amber-800 uppercase tracking-wider mb-1">
-              <FileText className="w-3 h-3" /> Coincidencia en la letra:
-            </div>
+          <div className="mt-3 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900">
             <p className="italic text-slate-700 line-clamp-2 leading-relaxed font-serif">
               «{renderHighlighted(searchInfo.snippet, searchQuery)}»
             </p>
@@ -131,58 +116,38 @@ export const SongCard: React.FC<SongCardProps> = ({
 
       </div>
 
-      {/* Card Footer: Action Buttons */}
-      <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 mt-2">
-        
-        <button
-          id={`view-song-${song.id}`}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (song.pdfUrl) {
-              openPdfDirectly(song.pdfUrl, song.pdfFileName);
-            }
-            onSelect(song);
-          }}
-          className="flex-1 py-2 px-3 text-xs sm:text-sm font-bold text-white bg-[#b31942] hover:bg-[#991538] rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-          title="Abrir PDF directamente desde el catálogo"
+      {/* Admin actions (only visible to admin) */}
+      {isAdmin && (
+        <div 
+          className="pt-3 border-t border-slate-100 flex items-center justify-end gap-1 mt-3"
+          onClick={(e) => e.stopPropagation()}
         >
-          <FileText className="w-4 h-4" />
-          <span>Abrir PDF</span>
-          <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-75" />
-        </button>
-
-        {/* Admin CRUD controls */}
-        {isAdmin && (
-          <div className="flex items-center gap-1">
-            <button
-              id={`edit-song-${song.id}`}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(song);
-              }}
-              className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-              title="Editar canción (Admin)"
-            >
-              <Edit3 className="w-4 h-4" />
-            </button>
-            <button
-              id={`delete-song-${song.id}`}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(song);
-              }}
-              className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-              title="Eliminar canción (Admin)"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-      </div>
+          <button
+            id={`edit-song-${song.id}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(song);
+            }}
+            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+            title="Editar canción (Admin)"
+          >
+            <Edit3 className="w-4 h-4" />
+          </button>
+          <button
+            id={`delete-song-${song.id}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(song);
+            }}
+            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+            title="Eliminar canción (Admin)"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
     </div>
   );
@@ -221,19 +186,20 @@ export const SongListItem: React.FC<SongCardProps> = ({
     <div 
       id={`song-list-item-${song.id}`}
       onClick={() => onSelect(song)}
-      className="group bg-white border border-slate-200 hover:border-amber-300 rounded-xl p-4 shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer"
+      className="group bg-white border border-slate-200 hover:border-[#b31942]/60 rounded-xl p-4 shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer"
+      title={`Hacer clic para ver partitura de ${song.artist}`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1">
           <span className="text-xs font-black tracking-wider uppercase px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
             {renderHighlighted(song.title, searchQuery)}
           </span>
-          <h3 className="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
+          <h3 className="text-base font-bold text-slate-900 group-hover:text-[#b31942] transition-colors">
             {renderHighlighted(song.artist, searchQuery)}
           </h3>
           {song.pdfUrl && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-              <FileText className="w-3 h-3 text-rose-600" /> PDF
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+              <FileText className="w-3 h-3 text-slate-400" /> Partitura
             </span>
           )}
         </div>
@@ -257,7 +223,7 @@ export const SongListItem: React.FC<SongCardProps> = ({
         <button
           type="button"
           onClick={() => toggleFavorite(song.id)}
-          className={`p-2 rounded-lg transition-colors ${
+          className={`p-2 rounded-lg transition-colors cursor-pointer ${
             song.isFavorite
               ? 'text-rose-500 bg-rose-50'
               : 'text-slate-400 hover:text-rose-500 hover:bg-slate-100'
@@ -267,28 +233,12 @@ export const SongListItem: React.FC<SongCardProps> = ({
           <Heart className={`w-4 h-4 ${song.isFavorite ? 'fill-current' : ''}`} />
         </button>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (song.pdfUrl) {
-              openPdfDirectly(song.pdfUrl, song.pdfFileName);
-            }
-            onSelect(song);
-          }}
-          className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#b31942] hover:bg-[#991538] rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-          title="Abrir PDF directamente desde el catálogo"
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Abrir PDF</span>
-        </button>
-
         {isAdmin && (
           <>
             <button
               type="button"
               onClick={() => onEdit(song)}
-              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
               title="Editar"
             >
               <Edit3 className="w-4 h-4" />
@@ -296,7 +246,7 @@ export const SongListItem: React.FC<SongCardProps> = ({
             <button
               type="button"
               onClick={() => onDelete(song)}
-              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
               title="Eliminar"
             >
               <Trash2 className="w-4 h-4" />

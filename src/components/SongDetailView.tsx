@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Song } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSongs } from '../context/SongContext';
@@ -7,13 +7,22 @@ import {
   Heart, 
   Edit3, 
   ChevronLeft, 
-  ChevronRight,
-  FileText,
+  ChevronRight, 
+  FileText, 
+  ZoomIn, 
+  ZoomOut, 
+  RotateCcw,
+  AlertCircle,
   ExternalLink,
-  BookOpen,
-  AlertCircle
+  Loader2
 } from 'lucide-react';
 import { getPdfBlobUrl, openPdfDirectly } from '../utils/pdfViewer';
+
+declare global {
+  interface Window {
+    pdfjsLib?: any;
+  }
+}
 
 interface SongDetailViewProps {
   song: Song;
@@ -30,39 +39,189 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
   const prevSong = currentIndex > 0 ? songs[currentIndex - 1] : null;
   const nextSong = currentIndex < songs.length - 1 ? songs[currentIndex + 1] : null;
 
-  // Convert base64 or Data URI into a safe, same-origin Blob URL for embedded iframe viewing
+  // Zoom scale state for PDF rendering
+  const [scale, setScale] = useState<number>(1.25);
+  const [numPages, setNumPages] = useState<number>(0);
+  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(true);
+  const [pdfRenderError, setPdfRenderError] = useState<string | null>(null);
+  const [pdfjsReady, setPdfjsReady] = useState<boolean>(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // Safe blob URL for native iframe fallback
   const pdfBlobUrl = useMemo(() => {
-    return getPdfBlobUrl(song.pdfUrl);
+    return song.pdfUrl ? getPdfBlobUrl(song.pdfUrl) : null;
   }, [song.pdfUrl]);
 
-  const handleOpenPdf = () => {
+  // Check if PDF.js is available in window
+  useEffect(() => {
+    const checkPdfJs = () => {
+      if (window.pdfjsLib) {
+        setPdfjsReady(true);
+      } else {
+        // Retry a few times in case script is loading from CDN
+        const timer = setTimeout(checkPdfJs, 200);
+        return () => clearTimeout(timer);
+      }
+    };
+    checkPdfJs();
+  }, []);
+
+  // Render PDF using PDF.js onto HTML5 Canvases for 100% Android & Mobile compatibility
+  useEffect(() => {
+    if (!song.pdfUrl || !pdfjsReady || !window.pdfjsLib) {
+      if (!song.pdfUrl) {
+        setIsLoadingPdf(false);
+      }
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLoadingPdf(true);
+    setPdfRenderError(null);
+
+    const renderPdf = async () => {
+      try {
+        let loadingTask: any;
+
+        if (song.pdfUrl!.startsWith('data:')) {
+          // Convert base64 data URI to Uint8Array for PDF.js
+          const base64Str = song.pdfUrl!.includes(',')
+            ? song.pdfUrl!.split(',')[1]
+            : song.pdfUrl!;
+          const cleanBase64 = base64Str.replace(/\s+/g, '');
+          const binaryString = atob(cleanBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+        } else if (pdfBlobUrl) {
+          loadingTask = window.pdfjsLib.getDocument(pdfBlobUrl);
+        } else {
+          loadingTask = window.pdfjsLib.getDocument(song.pdfUrl);
+        }
+
+        const pdfDoc = await loadingTask.promise;
+        if (isCancelled) return;
+
+        setNumPages(pdfDoc.numPages);
+
+        const container = canvasContainerRef.current;
+        if (!container) return;
+
+        // Clear existing canvases
+        container.innerHTML = '';
+
+        // Determine responsive base scale
+        const containerWidth = container.clientWidth || window.innerWidth - 40;
+
+        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+          if (isCancelled) break;
+
+          const page = await pdfDoc.getPage(pageNum);
+          if (isCancelled) break;
+
+          // Auto-fit scale relative to container width
+          const unscaledViewport = page.getViewport({ scale: 1.0 });
+          const targetWidth = Math.min(containerWidth - 32, 900);
+          const baseScale = targetWidth / unscaledViewport.width;
+          const finalScale = baseScale * scale;
+
+          const viewport = page.getViewport({ scale: finalScale });
+
+          // Support High-DPI (Retina/Mobile) crisp rendering
+          const pixelRatio = window.devicePixelRatio || 1;
+
+          const pageWrapper = document.createElement('div');
+          pageWrapper.className = 'mb-6 flex flex-col items-center shadow-md rounded-xl overflow-hidden bg-white border border-slate-200';
+
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.floor(viewport.width * pixelRatio);
+          canvas.height = Math.floor(viewport.height * pixelRatio);
+          canvas.style.width = `${Math.floor(viewport.width)}px`;
+          canvas.style.height = `${Math.floor(viewport.height)}px`;
+          canvas.className = 'block max-w-full';
+
+          pageWrapper.appendChild(canvas);
+
+          // Page indicator badge if multi-page
+          if (pdfDoc.numPages > 1) {
+            const pageBadge = document.createElement('div');
+            pageBadge.className = 'text-[11px] font-medium text-slate-500 py-1.5 bg-slate-50 w-full text-center border-t border-slate-100';
+            pageBadge.innerText = `Página ${pageNum} de ${pdfDoc.numPages}`;
+            pageWrapper.appendChild(pageBadge);
+          }
+
+          container.appendChild(pageWrapper);
+
+          const canvasContext = canvas.getContext('2d');
+          if (canvasContext) {
+            if (pixelRatio !== 1) {
+              canvasContext.scale(pixelRatio, pixelRatio);
+            }
+            await page.render({
+              canvasContext,
+              viewport,
+            }).promise;
+          }
+        }
+
+        if (!isCancelled) {
+          setIsLoadingPdf(false);
+        }
+      } catch (err: any) {
+        console.error('[SongDetailView] Error rendering PDF with PDF.js:', err);
+        if (!isCancelled) {
+          setPdfRenderError(err?.message || 'Error al procesar el archivo PDF');
+          setIsLoadingPdf(false);
+        }
+      }
+    };
+
+    renderPdf();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [song.pdfUrl, scale, pdfjsReady, pdfBlobUrl]);
+
+  const handleZoomIn = () => setScale(prev => Math.min(prev + 0.2, 2.5));
+  const handleZoomOut = () => setScale(prev => Math.max(prev - 0.2, 0.6));
+  const handleResetZoom = () => setScale(1.25);
+
+  const handleOpenExternal = () => {
     if (song.pdfUrl) {
       openPdfDirectly(song.pdfUrl, song.pdfFileName);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+    <div ref={containerRef} className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
       
-      {/* Top Breadcrumb & Navigation */}
-      <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-slate-200">
+      {/* Top Header: Volver al Catálogo + Song navigation */}
+      <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 pb-3 border-b border-slate-200">
+        
+        {/* Prominent Back to Catalog Button */}
         <button
           id="btn-back-to-catalog"
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors shadow-xs cursor-pointer"
+          className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl transition-colors shadow-xs cursor-pointer"
         >
-          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <ArrowLeft className="w-4 h-4 text-[#b31942]" />
           <span>Volver al Catálogo</span>
         </button>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        {/* Prev / Next Song Navigation & Favorite */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {prevSong && (
             <button
               type="button"
               onClick={() => setSelectedSong(prevSong)}
-              className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
-              title={`Anterior: ${prevSong.title} · ${prevSong.artist}`}
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200 cursor-pointer"
+              title={`Canto anterior: ${prevSong.title} - ${prevSong.artist}`}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -71,8 +230,8 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
             <button
               type="button"
               onClick={() => setSelectedSong(nextSong)}
-              className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
-              title={`Siguiente: ${nextSong.title} · ${nextSong.artist}`}
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200 cursor-pointer"
+              title={`Siguiente canto: ${nextSong.title} - ${nextSong.artist}`}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -81,136 +240,158 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
           <button
             type="button"
             onClick={() => toggleFavorite(song.id)}
-            className={`p-1.5 sm:p-2 rounded-lg border transition-colors cursor-pointer ${
+            className={`p-2 rounded-xl border transition-colors cursor-pointer ${
               song.isFavorite
                 ? 'text-rose-500 bg-rose-50 border-rose-200'
                 : 'text-slate-400 hover:text-rose-500 hover:bg-slate-100 border-slate-200'
             }`}
-            title={song.isFavorite ? 'En favoritos' : 'Agregar a favoritos'}
+            title={song.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
           >
             <Heart className={`w-4 h-4 ${song.isFavorite ? 'fill-current' : ''}`} />
           </button>
 
           {isAdmin && (
             <button
-              id="detail-edit-song-btn"
               type="button"
               onClick={() => onEdit(song)}
-              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-xl transition-colors cursor-pointer"
-              title="Editar canción (Modo Modificar)"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-xl transition-colors cursor-pointer"
+              title="Editar canción (Admin)"
             >
-              <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Editar</span>
+              <Edit3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Editar</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Song Header Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+      {/* Song Title & Information Banner */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-1.5 flex-wrap mb-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                <FileText className="w-3.5 h-3.5 text-rose-600" /> Partitura PDF
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className="text-xs font-black tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
+                {song.title}
               </span>
               {song.tags.map(tag => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 rounded-md text-[11px] sm:text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                  className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200"
                 >
                   {tag}
                 </span>
               ))}
             </div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-xs font-black tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
-                {song.title}
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
               {song.artist}
             </h1>
           </div>
 
-          {/* Quick PDF Action: Open PDF (replaces old "Pantalla Completa") */}
+          {/* Zoom controls for comfortable reading on Android & Desktop */}
           {song.pdfUrl && (
-            <div className="flex items-center gap-2 shrink-0 pt-1">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 self-start sm:self-auto">
               <button
                 type="button"
-                onClick={handleOpenPdf}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#b31942] hover:bg-[#991538] text-white text-xs sm:text-sm font-bold shadow-xs transition-colors cursor-pointer"
-                title="Abrir archivo PDF"
+                onClick={handleZoomOut}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-colors cursor-pointer"
+                title="Reducir zoom"
               >
-                <ExternalLink className="w-4 h-4" />
-                <span>Abrir PDF</span>
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-semibold text-slate-600 px-1 min-w-[42px] text-center">
+                {Math.round(scale * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={handleZoomIn}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-colors cursor-pointer"
+                title="Aumentar zoom"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-colors cursor-pointer ml-0.5"
+                title="Restablecer tamaño normal"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* MAIN CONTENT AREA: EXCLUSIVELY PDF VIEWER */}
+      {/* Main Score Area */}
       {song.pdfUrl ? (
-        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xs overflow-hidden">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 text-xs text-slate-500">
-            <div className="flex items-center gap-2 truncate">
-              <FileText className="w-4 h-4 text-rose-600 shrink-0" />
-              <span className="font-semibold text-slate-800 truncate">
-                {song.pdfFileName || `${song.title} - ${song.artist}.pdf`}
-              </span>
+        <div className="bg-slate-100/70 border border-slate-200 rounded-2xl sm:rounded-3xl p-3 sm:p-6 min-h-[500px]">
+          
+          {/* Loading Indicator */}
+          {isLoadingPdf && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+              <Loader2 className="w-8 h-8 text-[#b31942] animate-spin mb-3" />
+              <p className="text-sm font-semibold">Cargando partitura...</p>
+              <p className="text-xs text-slate-400 mt-1">Preparando visualización para tu dispositivo</p>
             </div>
+          )}
+
+          {/* Primary View: Canvas rendered via PDF.js (works 100% on Android, iOS, and PC) */}
+          <div 
+            ref={canvasContainerRef} 
+            className={`flex flex-col items-center transition-opacity duration-200 ${isLoadingPdf ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}
+          />
+
+          {/* Fallback if PDF.js is unavailable or failed to render */}
+          {!isLoadingPdf && pdfRenderError && (
+            <div className="bg-white rounded-2xl p-6 text-center border border-slate-200 max-w-md mx-auto my-8">
+              <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+              <h3 className="text-base font-bold text-slate-800 mb-1">Visualizador alternativo</h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Puedes abrir el documento directamente o utilizar el visor nativo.
+              </p>
+              {pdfBlobUrl && (
+                <div className="w-full h-[600px] rounded-xl overflow-hidden border border-slate-200 mb-4">
+                  <iframe
+                    src={pdfBlobUrl}
+                    title="Partitura"
+                    className="w-full h-full border-none"
+                  />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleOpenExternal}
+                className="px-4 py-2 bg-[#b31942] hover:bg-[#991538] text-white text-xs font-bold rounded-xl transition-colors inline-flex items-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Abrir en visor externo</span>
+              </button>
+            </div>
+          )}
+
+          {/* Bottom Bar: Back to catalog button + Open in external viewer */}
+          <div className="mt-4 pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
             <button
               type="button"
-              onClick={handleOpenPdf}
-              className="text-[#b31942] hover:text-[#991538] font-bold text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer shrink-0 ml-2"
-              title="Abrir PDF en pestaña independiente"
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-[#b31942]" />
+              <span>Volver al Catálogo</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenExternal}
+              className="text-[#b31942] hover:text-[#991538] font-bold inline-flex items-center gap-1 cursor-pointer"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Abrir PDF</span>
+              <span>Abrir en otra pestaña / lector PDF</span>
             </button>
           </div>
 
-          {/* PDF Frame */}
-          <div className="w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100 min-h-[650px] h-[78vh] relative">
-            {pdfBlobUrl ? (
-              <iframe
-                src={pdfBlobUrl}
-                title={`Partitura PDF - ${song.title} ${song.artist}`}
-                className="w-full h-full border-none"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                <FileText className="w-12 h-12 text-slate-400 mb-3" />
-                <p className="text-sm font-semibold text-slate-700 mb-2">
-                  Cargando partitura PDF...
-                </p>
-                <button
-                  type="button"
-                  onClick={handleOpenPdf}
-                  className="px-4 py-2 rounded-xl bg-[#b31942] text-white text-xs font-bold"
-                >
-                  Abrir PDF
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Direct open notice bar */}
-          <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-600 bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200">
-            <span>Visualización de partitura PDF directa en el cancionero.</span>
-            <button
-              type="button"
-              onClick={handleOpenPdf}
-              className="text-[#b31942] hover:text-[#991538] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Abrir PDF en visor externo</span>
-            </button>
-          </div>
         </div>
       ) : (
-        /* Empty State when song does not have a PDF uploaded */
+        /* Empty state: No PDF attached */
         <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-8 sm:p-14 shadow-xs text-center">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-4 text-amber-600">
             <AlertCircle className="w-8 h-8" />
@@ -222,42 +403,29 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
             Esta canción ({song.title} - {song.artist}) todavía no tiene un archivo PDF de partitura cargado.
           </p>
 
-          {isAdmin ? (
-            <button
-              type="button"
-              onClick={() => onEdit(song)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#b31942] hover:bg-[#991538] text-white text-sm font-semibold transition-colors cursor-pointer shadow-xs"
-            >
-              <Edit3 className="w-4 h-4" />
-              <span>Subir archivo PDF para esta canción</span>
-            </button>
-          ) : (
+          <div className="flex flex-wrap gap-2.5 justify-center">
             <button
               type="button"
               onClick={onBack}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Volver a la lista de canciones</span>
+              <ArrowLeft className="w-4 h-4 text-[#b31942]" />
+              <span>Volver al Catálogo</span>
             </button>
-          )}
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => onEdit(song)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#b31942] hover:bg-[#991538] text-white text-sm font-semibold transition-colors cursor-pointer shadow-xs"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Subir archivo PDF</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
-
-      {/* Footer Info & Quick Back */}
-      <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-[#b31942]" />
-          <span>CANCIONERO SALESIANO</span>
-        </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-[#b31942] hover:text-[#991538] font-semibold cursor-pointer"
-        >
-          Volver a la lista de canciones ↑
-        </button>
-      </div>
 
     </div>
   );

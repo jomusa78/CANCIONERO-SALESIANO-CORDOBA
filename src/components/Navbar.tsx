@@ -35,11 +35,14 @@ export const Navbar: React.FC = () => {
 
   const handleCatalogClick = () => {
     setSelectedSong(null);
+    if (searchQuery) {
+      setSearchQuery('');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    // If inside a song's detailed sheet, return to the catalog view to see matches
     if (selectedSong) {
       setSelectedSong(null);
     }
@@ -85,7 +88,7 @@ export const Navbar: React.FC = () => {
               type="button"
               onClick={handleCatalogClick}
               className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5 shrink-0 ${
-                !selectedSong && !searchQuery
+                !searchQuery
                   ? 'bg-rose-50 text-[#b31942] border border-rose-200'
                   : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
               }`}
@@ -226,7 +229,7 @@ export const Navbar: React.FC = () => {
             type="button"
             onClick={handleCatalogClick}
             className={`px-2.5 py-1.5 text-xs font-bold rounded-xl transition-colors flex items-center gap-1 shrink-0 ${
-              !selectedSong && !searchQuery
+              !searchQuery
                 ? 'bg-rose-50 text-[#b31942] border border-rose-200'
                 : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200'
             }`}

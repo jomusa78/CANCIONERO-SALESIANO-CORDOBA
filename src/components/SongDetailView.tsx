@@ -8,13 +8,14 @@ import {
   Edit3, 
   ChevronLeft, 
   ChevronRight, 
-  FileText, 
   ZoomIn, 
   ZoomOut, 
   RotateCcw,
   AlertCircle,
   ExternalLink,
-  Loader2
+  Loader2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { getPdfBlobUrl, openPdfDirectly } from '../utils/pdfViewer';
 
@@ -45,6 +46,7 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(true);
   const [pdfRenderError, setPdfRenderError] = useState<string | null>(null);
   const [pdfjsReady, setPdfjsReady] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -54,13 +56,37 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
     return song.pdfUrl ? getPdfBlobUrl(song.pdfUrl) : null;
   }, [song.pdfUrl]);
 
+  // Synchronize fullscreen state with browser events (e.g. Esc key)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const active = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(active);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
   // Check if PDF.js is available in window
   useEffect(() => {
     const checkPdfJs = () => {
       if (window.pdfjsLib) {
         setPdfjsReady(true);
       } else {
-        // Retry a few times in case script is loading from CDN
         const timer = setTimeout(checkPdfJs, 200);
         return () => clearTimeout(timer);
       }
@@ -123,9 +149,11 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
           const page = await pdfDoc.getPage(pageNum);
           if (isCancelled) break;
 
-          // Auto-fit scale relative to container width
+          // Auto-fit scale relative to container width (higher allowance when full size)
           const unscaledViewport = page.getViewport({ scale: 1.0 });
-          const targetWidth = Math.min(containerWidth - 32, 900);
+          const targetWidth = isFullscreen
+            ? Math.min(containerWidth - 32, 1200)
+            : Math.min(containerWidth - 32, 900);
           const baseScale = targetWidth / unscaledViewport.width;
           const finalScale = baseScale * scale;
 
@@ -185,11 +213,53 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
     return () => {
       isCancelled = true;
     };
-  }, [song.pdfUrl, scale, pdfjsReady, pdfBlobUrl]);
+  }, [song.pdfUrl, scale, pdfjsReady, pdfBlobUrl, isFullscreen]);
 
   const handleZoomIn = () => setScale(prev => Math.min(prev + 0.2, 2.5));
   const handleZoomOut = () => setScale(prev => Math.max(prev - 0.2, 0.6));
   const handleResetZoom = () => setScale(1.25);
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!isFullscreen) {
+        const el = containerRef.current || document.documentElement;
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+          setIsFullscreen(true);
+        } else if ((el as any).webkitRequestFullscreen) {
+          await (el as any).webkitRequestFullscreen();
+          setIsFullscreen(true);
+        } else {
+          // Fallback on mobile/iOS where element requestFullscreen may be restricted
+          setIsFullscreen(true);
+        }
+      } else {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      // In case Fullscreen API permission is denied, use state overlay
+      setIsFullscreen(prev => !prev);
+    }
+  };
+
+  const handleBack = async () => {
+    if (isFullscreen) {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        try {
+          await document.exitFullscreen();
+        } catch {
+          // Ignore
+        }
+      }
+      setIsFullscreen(false);
+    }
+    onBack();
+  };
 
   const handleOpenExternal = () => {
     if (song.pdfUrl) {
@@ -198,16 +268,25 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
   };
 
   return (
-    <div ref={containerRef} className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+    <div 
+      ref={containerRef} 
+      className={`transition-all duration-150 ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto px-3 sm:px-8 py-4 sm:py-6 w-full h-full'
+          : 'max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6'
+      }`}
+    >
       
       {/* Top Header: Volver al Catálogo + Song navigation */}
-      <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 pb-3 border-b border-slate-200">
+      <div className={`flex items-center justify-between gap-2 sm:gap-4 mb-4 pb-3 border-b border-slate-200 ${
+        isFullscreen ? 'sticky top-0 z-30 bg-slate-50/95 backdrop-blur-sm py-2 px-1 rounded-xl' : ''
+      }`}>
         
         {/* Prominent Back to Catalog Button */}
         <button
           id="btn-back-to-catalog"
           type="button"
-          onClick={onBack}
+          onClick={handleBack}
           className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl transition-colors shadow-xs cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-[#b31942]" />
@@ -286,35 +365,67 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
             </h1>
           </div>
 
-          {/* Zoom controls for comfortable reading on Android & Desktop */}
+          {/* Zoom & Full Size controls (Ampliar, Reducir y Tamaño Completo) */}
           {song.pdfUrl && (
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 self-start sm:self-auto">
+              {/* Reducir Zoom */}
               <button
                 type="button"
                 onClick={handleZoomOut}
                 className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-colors cursor-pointer"
                 title="Reducir zoom"
+                aria-label="Reducir zoom"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
-              <span className="text-xs font-semibold text-slate-600 px-1 min-w-[42px] text-center">
+
+              {/* Porcentaje actual */}
+              <span className="text-xs font-semibold text-slate-600 px-1 min-w-[42px] text-center select-none">
                 {Math.round(scale * 100)}%
               </span>
+
+              {/* Ampliar Zoom */}
               <button
                 type="button"
                 onClick={handleZoomIn}
                 className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-colors cursor-pointer"
-                title="Aumentar zoom"
+                title="Ampliar zoom"
+                aria-label="Ampliar zoom"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
+
+              {/* Restablecer Zoom original */}
               <button
                 type="button"
                 onClick={handleResetZoom}
                 className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-colors cursor-pointer ml-0.5"
-                title="Restablecer tamaño normal"
+                title="Restablecer tamaño normal (100%)"
+                aria-label="Restablecer tamaño normal"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Separador sutil */}
+              <div className="w-[1px] h-4 bg-slate-300 mx-0.5" />
+
+              {/* Icono de Tamaño Completo (Pantalla Completa) al lado de los de zoom */}
+              <button
+                type="button"
+                onClick={handleToggleFullscreen}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  isFullscreen
+                    ? 'text-[#b31942] bg-rose-50 hover:bg-rose-100 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                }`}
+                title={isFullscreen ? 'Salir de tamaño completo' : 'Tamaño completo'}
+                aria-label={isFullscreen ? 'Salir de tamaño completo' : 'Tamaño completo'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4 text-[#b31942]" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
               </button>
             </div>
           )}
@@ -323,7 +434,9 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
 
       {/* Main Score Area */}
       {song.pdfUrl ? (
-        <div className="bg-slate-100/70 border border-slate-200 rounded-2xl sm:rounded-3xl p-3 sm:p-6 min-h-[500px]">
+        <div className={`bg-slate-100/70 border border-slate-200 rounded-2xl sm:rounded-3xl p-3 sm:p-6 min-h-[500px] ${
+          isFullscreen ? 'shadow-lg bg-white/90' : ''
+        }`}>
           
           {/* Loading Indicator */}
           {isLoadingPdf && (
@@ -372,7 +485,7 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
           <div className="mt-4 pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
             <button
               type="button"
-              onClick={onBack}
+              onClick={handleBack}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-[#b31942]" />
@@ -406,7 +519,7 @@ export const SongDetailView: React.FC<SongDetailViewProps> = ({ song, onBack, on
           <div className="flex flex-wrap gap-2.5 justify-center">
             <button
               type="button"
-              onClick={onBack}
+              onClick={handleBack}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 text-[#b31942]" />

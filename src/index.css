@@ -9,6 +9,11 @@
   }
 }
 
+:fullscreen {
+  background-color: #f8fafc;
+  overflow-y: auto;
+}
+
 /* Custom scrollbar for smooth lyrics reading */
 ::-webkit-scrollbar {
   width: 8px;

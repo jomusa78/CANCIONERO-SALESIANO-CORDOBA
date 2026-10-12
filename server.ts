@@ -9,8 +9,16 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Middleware for parsing JSON
-app.use(express.json());
+// Middleware for parsing JSON with 50MB limit to support PDF uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Uploads directory for persistent PDF files
+const UPLOADS_DIR = path.resolve(process.cwd(), 'public', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Server-side admin password storage
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -343,7 +351,7 @@ app.post(['/api/songs/insert', '/api/songs/new'], (req, res) => {
     pdfFileName = `${base}_${timestamp}_${uuidPart}${ext}`;
   }
 
-  const newSong = {
+  const newSong: any = {
     ...payload,
     id: autoId,
     pdfFileName: pdfFileName || payload.pdfFileName,
@@ -351,10 +359,24 @@ app.post(['/api/songs/insert', '/api/songs/new'], (req, res) => {
     updatedAt: new Date().toISOString(),
   };
 
+  // If payload contains a base64 PDF Data URL, save it as a real PDF file to disk
+  if (payload.pdfUrl && typeof payload.pdfUrl === 'string' && payload.pdfUrl.startsWith('data:')) {
+    try {
+      const base64Data = payload.pdfUrl.replace(/^data:[^;]+;base64,/, '');
+      const targetFile = path.resolve(UPLOADS_DIR, pdfFileName);
+      fs.writeFileSync(targetFile, Buffer.from(base64Data, 'base64'));
+      newSong.pdfUrl = `/uploads/${encodeURIComponent(pdfFileName)}`;
+      newSong.pdfFileSize = Buffer.byteLength(base64Data, 'base64');
+      console.log(`[Server] Guardado archivo PDF en disco: ${targetFile}`);
+    } catch (pdfErr) {
+      console.warn('[Server] Error escribiendo PDF a disco:', pdfErr);
+    }
+  }
+
   delete newSong.action;
   delete newSong.isInsert;
 
-  // Strict INSERT / push operation: prepends as a brand new record
+  // Strict INSERT / push operation: prepends as a brand new record (never update or replace existing)
   currentSongs = [newSong, ...currentSongs];
   saveServerSongs(currentSongs);
 
@@ -367,19 +389,157 @@ app.post(['/api/songs/insert', '/api/songs/new'], (req, res) => {
   });
 });
 
-// POST song (bulk replace, explicit INSERT, or single upsert)
+// PUT /api/songs/:id: MODO MODIFICAR - strictly updates the song matching ID, NEVER duplicates
+app.put(['/api/songs/:id', '/api/songs/update/:id'], (req, res) => {
+  const songId = req.params.id;
+  const payload = req.body || {};
+  let currentSongs = getServerSongs() || [];
+
+  // Match existing song by exact ID, or payload ID, or title
+  let index = currentSongs.findIndex((s: any) => String(s.id) === String(songId));
+  if (index === -1 && payload.id) {
+    index = currentSongs.findIndex((s: any) => String(s.id) === String(payload.id));
+  }
+  if (index === -1 && payload.title) {
+    index = currentSongs.findIndex((s: any) => s.title && s.title.trim().toLowerCase() === payload.title.trim().toLowerCase());
+  }
+
+  let songToSave: any = { ...payload, id: songId };
+
+  // If a new PDF was uploaded during modification, save it to disk
+  if (payload.pdfUrl && typeof payload.pdfUrl === 'string' && payload.pdfUrl.startsWith('data:')) {
+    try {
+      let pdfFileName = payload.pdfFileName || `song_${songId}_${Date.now()}.pdf`;
+      if (!pdfFileName.includes('_')) {
+        const ext = pdfFileName.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+        const base = pdfFileName.replace(/\.pdf$/i, '');
+        pdfFileName = `${base}_${Date.now()}${ext}`;
+      }
+      const base64Data = payload.pdfUrl.replace(/^data:[^;]+;base64,/, '');
+      const targetFile = path.resolve(UPLOADS_DIR, pdfFileName);
+      fs.writeFileSync(targetFile, Buffer.from(base64Data, 'base64'));
+      songToSave.pdfUrl = `/uploads/${encodeURIComponent(pdfFileName)}`;
+      songToSave.pdfFileName = pdfFileName;
+      songToSave.pdfFileSize = Buffer.byteLength(base64Data, 'base64');
+      console.log(`[Server] Guardado archivo PDF modificado en disco: ${targetFile}`);
+    } catch (pdfErr) {
+      console.warn('[Server] Error escribiendo PDF modificado a disco:', pdfErr);
+    }
+  }
+
+  delete songToSave.action;
+  delete songToSave.isInsert;
+  delete songToSave.isUpdate;
+
+  if (index >= 0) {
+    // Modify in place without duplicating
+    currentSongs[index] = {
+      ...currentSongs[index],
+      ...songToSave,
+      id: currentSongs[index].id || songId,
+      updatedAt: new Date().toISOString()
+    };
+    console.log(`[Server DB] Canción modificada con éxito sin duplicar (ID: ${currentSongs[index].id}, Título: ${currentSongs[index].title})`);
+  } else {
+    // If not found in server json yet (e.g. an initial song): add with its exact existing ID
+    currentSongs = [{ ...songToSave, id: songId, updatedAt: new Date().toISOString() }, ...currentSongs];
+  }
+
+  // Deduplicate strictly by ID: NO duplicates allowed
+  const seenIds = new Set<string>();
+  currentSongs = currentSongs.filter((s: any) => {
+    const sId = String(s.id);
+    if (seenIds.has(sId)) return false;
+    seenIds.add(sId);
+    return true;
+  });
+
+  saveServerSongs(currentSongs);
+  return res.json({
+    success: true,
+    operation: 'UPDATE',
+    song: index >= 0 ? currentSongs[index] : currentSongs[0],
+    total: currentSongs.length
+  });
+});
+
+// POST song (bulk replace, explicit INSERT, or single update)
 app.post('/api/songs', (req, res) => {
   const payload = req.body;
   if (Array.isArray(payload)) {
-    saveServerSongs(payload);
-    return res.json({ success: true, count: payload.length });
+    const seen = new Set<string>();
+    const deduplicated = payload.filter((s: any) => {
+      const sId = String(s.id);
+      if (seen.has(sId)) return false;
+      seen.add(sId);
+      return true;
+    });
+    saveServerSongs(deduplicated);
+    return res.json({ success: true, count: deduplicated.length });
   } else if (payload && typeof payload === 'object') {
     let currentSongs = getServerSongs() || [];
 
-    // If explicit INSERT action requested or isInsert flag set: always create new record with auto ID
-    const isExplicitInsert = payload.action === 'insert' || payload.isInsert === true || Boolean(req.query.insert);
+    // Explicit UPDATE mode requested: NEVER INSERT or DUPLICATE
+    const isExplicitUpdate = payload.action === 'update' || payload.isUpdate === true;
+    if (isExplicitUpdate && payload.id) {
+      let index = currentSongs.findIndex((s: any) => String(s.id) === String(payload.id));
+      if (index === -1 && payload.title) {
+        index = currentSongs.findIndex((s: any) => s.title && s.title.trim().toLowerCase() === payload.title.trim().toLowerCase());
+      }
 
-    if (isExplicitInsert || !payload.id) {
+      let songToSave: any = { ...payload };
+      if (payload.pdfUrl && typeof payload.pdfUrl === 'string' && payload.pdfUrl.startsWith('data:')) {
+        try {
+          let pdfFileName = payload.pdfFileName || `song_${payload.id}_${Date.now()}.pdf`;
+          if (!pdfFileName.includes('_')) {
+            const ext = pdfFileName.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+            const base = pdfFileName.replace(/\.pdf$/i, '');
+            pdfFileName = `${base}_${Date.now()}${ext}`;
+          }
+          const base64Data = payload.pdfUrl.replace(/^data:[^;]+;base64,/, '');
+          const targetFile = path.resolve(UPLOADS_DIR, pdfFileName);
+          fs.writeFileSync(targetFile, Buffer.from(base64Data, 'base64'));
+          songToSave.pdfUrl = `/uploads/${encodeURIComponent(pdfFileName)}`;
+          songToSave.pdfFileName = pdfFileName;
+          songToSave.pdfFileSize = Buffer.byteLength(base64Data, 'base64');
+        } catch (pdfErr) {
+          console.warn('[Server] Error escribiendo PDF modificado a disco:', pdfErr);
+        }
+      }
+
+      delete songToSave.action;
+      delete songToSave.isInsert;
+      delete songToSave.isUpdate;
+
+      if (index >= 0) {
+        currentSongs[index] = {
+          ...currentSongs[index],
+          ...songToSave,
+          id: currentSongs[index].id,
+          updatedAt: new Date().toISOString()
+        };
+        console.log(`[Server DB] Canción modificada con éxito sin duplicar (ID: ${currentSongs[index].id})`);
+      } else {
+        currentSongs = [{ ...songToSave, id: payload.id, updatedAt: new Date().toISOString() }, ...currentSongs];
+      }
+
+      // Deduplicate strictly
+      const seenIds = new Set<string>();
+      currentSongs = currentSongs.filter((s: any) => {
+        const sId = String(s.id);
+        if (seenIds.has(sId)) return false;
+        seenIds.add(sId);
+        return true;
+      });
+
+      saveServerSongs(currentSongs);
+      return res.json({ success: true, operation: 'UPDATE', song: index >= 0 ? currentSongs[index] : currentSongs[0], total: currentSongs.length });
+    }
+
+    // If explicit INSERT action requested or isInsert flag set (or no ID): create new record with auto ID
+    const isExplicitInsert = payload.action === 'insert' || payload.isInsert === true || Boolean(req.query.insert) || !payload.id;
+
+    if (isExplicitInsert) {
       const timestamp = Date.now();
       const uuidPart = Math.random().toString(36).substring(2, 9);
       const autoId = payload.id || `song-${timestamp}-${uuidPart}`;
@@ -391,32 +551,94 @@ app.post('/api/songs', (req, res) => {
         pdfFileName = `${base}_${timestamp}_${uuidPart}${ext}`;
       }
 
-      const newSong = {
+      const newSong: any = {
         ...payload,
         id: autoId,
         pdfFileName: pdfFileName || payload.pdfFileName,
         createdAt: payload.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+
+      if (payload.pdfUrl && typeof payload.pdfUrl === 'string' && payload.pdfUrl.startsWith('data:')) {
+        try {
+          const base64Data = payload.pdfUrl.replace(/^data:[^;]+;base64,/, '');
+          const targetFile = path.resolve(UPLOADS_DIR, pdfFileName);
+          fs.writeFileSync(targetFile, Buffer.from(base64Data, 'base64'));
+          newSong.pdfUrl = `/uploads/${encodeURIComponent(pdfFileName)}`;
+          newSong.pdfFileSize = Buffer.byteLength(base64Data, 'base64');
+          console.log(`[Server] Guardado archivo PDF en disco: ${targetFile}`);
+        } catch (pdfErr) {
+          console.warn('[Server] Error escribiendo PDF a disco:', pdfErr);
+        }
+      }
+
       delete newSong.action;
       delete newSong.isInsert;
+      delete newSong.isUpdate;
 
       // Strict INSERT / push
       currentSongs = [newSong, ...currentSongs];
+      
+      // Deduplicate
+      const seenIds = new Set<string>();
+      currentSongs = currentSongs.filter((s: any) => {
+        const sId = String(s.id);
+        if (seenIds.has(sId)) return false;
+        seenIds.add(sId);
+        return true;
+      });
+
       saveServerSongs(currentSongs);
       console.log(`[Server DB] Inserción (INSERT/push) ejecutada en /api/songs para nuevo registro: ${newSong.id}`);
       return res.status(201).json({ success: true, operation: 'INSERT', song: newSong, total: currentSongs.length });
     }
 
-    // Otherwise, update existing song by ID or append if not present
-    const index = currentSongs.findIndex((s: any) => s.id === payload.id);
-    if (index >= 0) {
-      currentSongs[index] = { ...currentSongs[index], ...payload, updatedAt: new Date().toISOString() };
-    } else {
-      currentSongs = [payload, ...currentSongs];
+    // Otherwise: payload has an ID, so update that existing song without duplicating
+    let songToSave: any = { ...payload };
+
+    if (payload.pdfUrl && typeof payload.pdfUrl === 'string' && payload.pdfUrl.startsWith('data:')) {
+      try {
+        let pdfFileName = payload.pdfFileName || `song_${payload.id}_${Date.now()}.pdf`;
+        if (!pdfFileName.includes('_')) {
+          const ext = pdfFileName.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+          const base = pdfFileName.replace(/\.pdf$/i, '');
+          pdfFileName = `${base}_${Date.now()}${ext}`;
+        }
+        const base64Data = payload.pdfUrl.replace(/^data:[^;]+;base64,/, '');
+        const targetFile = path.resolve(UPLOADS_DIR, pdfFileName);
+        fs.writeFileSync(targetFile, Buffer.from(base64Data, 'base64'));
+        songToSave.pdfUrl = `/uploads/${encodeURIComponent(pdfFileName)}`;
+        songToSave.pdfFileName = pdfFileName;
+        songToSave.pdfFileSize = Buffer.byteLength(base64Data, 'base64');
+        console.log(`[Server] Guardado archivo PDF modificado en disco: ${targetFile}`);
+      } catch (pdfErr) {
+        console.warn('[Server] Error escribiendo PDF modificado a disco:', pdfErr);
+      }
     }
+
+    delete songToSave.action;
+    delete songToSave.isInsert;
+    delete songToSave.isUpdate;
+
+    const index = currentSongs.findIndex((s: any) => String(s.id) === String(payload.id));
+    if (index >= 0) {
+      currentSongs[index] = { ...currentSongs[index], ...songToSave, id: currentSongs[index].id, updatedAt: new Date().toISOString() };
+      console.log(`[Server DB] Canción modificada con éxito sin duplicar (ID: ${payload.id}, Título: ${currentSongs[index].title})`);
+    } else {
+      currentSongs = [songToSave, ...currentSongs];
+    }
+
+    // Deduplicate
+    const seenIds = new Set<string>();
+    currentSongs = currentSongs.filter((s: any) => {
+      const sId = String(s.id);
+      if (seenIds.has(sId)) return false;
+      seenIds.add(sId);
+      return true;
+    });
+
     saveServerSongs(currentSongs);
-    return res.json({ success: true, song: payload, total: currentSongs.length });
+    return res.json({ success: true, operation: 'UPDATE', song: index >= 0 ? currentSongs[index] : currentSongs[0], total: currentSongs.length });
   }
   return res.status(400).json({ success: false, message: 'Formato de canción inválido.' });
 });

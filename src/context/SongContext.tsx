@@ -78,10 +78,17 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const hasSeededCloudRef = useRef(false);
 
-  // Sync to localStorage as local instant cache
+  // Sync to localStorage as local instant cache (safeguard against 5MB quota errors)
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
+      // Avoid storing heavy base64 strings in localStorage to prevent QuotaExceededError
+      const songsForStorage = songs.map(s => {
+        if (s.pdfUrl && s.pdfUrl.startsWith('data:')) {
+          return { ...s, pdfUrl: undefined };
+        }
+        return s;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(songsForStorage));
     } catch (err) {
       console.warn('[LocalStorage] Storage quota notice:', err);
     }
@@ -125,20 +132,6 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       songsQuery,
       async snapshot => {
         if (snapshot.empty) {
-          // If Firestore is completely empty on first launch, seed with INITIAL_SONGS
-          if (!hasSeededCloudRef.current) {
-            hasSeededCloudRef.current = true;
-            console.log('[Firestore] Empty cloud catalog detected. Seeding initial songs to Firestore...');
-            try {
-              for (const song of INITIAL_SONGS) {
-                const songDocRef = doc(db, 'songs', song.id);
-                await setDoc(songDocRef, { ...song, isPublic: true });
-              }
-              console.log('[Firestore] Successfully seeded initial songs to cloud!');
-            } catch (seedErr) {
-              console.warn('[Firestore] Notice during cloud seeding (requires admin auth):', seedErr);
-            }
-          }
           return;
         }
 
@@ -166,16 +159,15 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (cloudSongs.length > 0) {
           console.log(`[Firestore] Real-time sync received: ${cloudSongs.length} songs from Firestore cloud.`);
-          setSongs(cloudSongs);
+          setSongs(prev => {
+            // Merge cloud songs with existing songs, never erase existing records
+            const map = new Map<string, Song>();
+            prev.forEach(s => map.set(s.id, s));
+            cloudSongs.forEach(s => map.set(s.id, s));
+            return Array.from(map.values());
+          });
           setIsCloudSynced(true);
           setSyncSource('cloud');
-
-          // Keep server backup in sync as well
-          fetch('/api/songs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cloudSongs),
-          }).catch(() => null);
         }
       },
       error => {
@@ -246,7 +238,13 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...song, action: 'insert', isInsert: true }),
       });
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        console.log('[Server DB] Inserción (INSERT/push) ejecutada en base de datos con ID automático:', song.id);
+        if (data?.song?.pdfUrl && data.song.pdfUrl !== song.pdfUrl) {
+          setSongs(prev => prev.map(s => (s.id === song.id ? { ...s, pdfUrl: data.song.pdfUrl } : s)));
+        }
+      } else {
         // Fallback to /api/songs with explicit insert action
         await fetch('/api/songs', {
           method: 'POST',
@@ -254,7 +252,6 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
           body: JSON.stringify({ ...song, action: 'insert', isInsert: true }),
         });
       }
-      console.log('[Server DB] Inserción (INSERT/push) ejecutada en base de datos con ID automático:', song.id);
     } catch (err) {
       console.warn('[Server] Notice executing insert on server:', err);
     }
@@ -270,24 +267,47 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Persist single song update to Server API and Firestore Cloud
+  // Persist single song update to Server API and Firestore Cloud (UPDATE only, NEVER duplicate)
   const persistUpdateSong = async (id: string, updatedSong: Song) => {
-    // 1. Server persistence
+    const payload = {
+      ...updatedSong,
+      id,
+      action: 'update',
+      isUpdate: true,
+    };
+
+    // 1. Server persistence via PUT /api/songs/:id (with POST fallback)
     try {
-      await fetch('/api/songs', {
-        method: 'POST',
+      let res = await fetch(`/api/songs/${encodeURIComponent(id)}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedSong),
+        body: JSON.stringify(payload),
       });
-      console.log('[Server] Song updated on server database:', id);
+
+      if (!res.ok) {
+        res = await fetch('/api/songs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        console.log('[Server DB] Canción modificada con éxito sin duplicar (ID:', id, ')');
+        if (data?.song?.pdfUrl && data.song.pdfUrl !== updatedSong.pdfUrl) {
+          setSongs(prev => prev.map(s => (s.id === id ? { ...s, pdfUrl: data.song.pdfUrl } : s)));
+        }
+      }
     } catch (err) {
-      console.warn('[Server] Could not update song on server:', err);
+      console.warn('[Server] Notice updating song on server:', err);
     }
 
-    // 2. Cloud Firestore persistence
+    // 2. Cloud Firestore persistence (merge: true, modify only document with this ID)
     try {
       const docRef = doc(db, 'songs', id);
-      await setDoc(docRef, { ...updatedSong, isPublic: true }, { merge: true });
-      console.log('[Firestore] Song updated in cloud Firestore:', id);
+      await setDoc(docRef, { ...updatedSong, id, isPublic: true }, { merge: true });
+      console.log('[Firestore DB] Canción modificada en Firestore cloud (ID:', id, ')');
     } catch (err) {
       console.warn('[Firestore] Notice updating song in cloud:', err);
     }
@@ -339,8 +359,15 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       plainLyrics: extractPlainLyrics(songData.content),
     };
 
-    // Push new record into state (unshift to place newest song at top)
-    setSongs(prev => [newSong, ...prev]);
+    // Push new record into state (unshift to place newest song at top) and deduplicate
+    setSongs(prev => {
+      const seen = new Set<string>();
+      return [newSong, ...prev].filter(s => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
+      });
+    });
 
     // Execute database insertion (INSERT/push)
     persistAddSong(newSong);
@@ -348,26 +375,36 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newSong;
   };
 
+  // MODO MODIFICAR: NO DUPLICAR CANCIÓN, solo modificar esa canción que ya tiene su ID único
   const updateSong = (id: string, songData: Partial<Omit<Song, 'id'>>) => {
-    let updatedSongObj: Song | null = null;
-    setSongs(prev =>
-      prev.map(s => {
-        if (s.id === id) {
-          const updatedContent = songData.content !== undefined ? songData.content : s.content;
-          updatedSongObj = {
-            ...s,
-            ...songData,
-            plainLyrics: extractPlainLyrics(updatedContent),
-          };
-          return updatedSongObj;
-        }
-        return s;
-      })
-    );
+    // Find existing song from state
+    const existing = songs.find(s => s.id === id);
+    const updatedContent = songData.content !== undefined ? songData.content : (existing ? existing.content : '');
 
-    if (updatedSongObj) {
-      persistUpdateSong(id, updatedSongObj);
-    }
+    const updatedSongObj: Song = {
+      ...(existing || ({} as Song)),
+      ...songData,
+      id, // NUNCA cambia: preserva estrictamente el ID único existente
+      updatedAt: new Date().toISOString(),
+      plainLyrics: extractPlainLyrics(updatedContent),
+    };
+
+    // 1. Modificar en estado local IN-PLACE (sin duplicar, deduplicando por ID)
+    setSongs(prev => {
+      const updatedList = prev.map(s => (s.id === id ? updatedSongObj : s));
+      const seen = new Set<string>();
+      return updatedList.filter(s => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
+      });
+    });
+
+    // 2. Si la canción seleccionada es la que se acaba de modificar, actualizarla inmediatamente
+    setSelectedSong(prev => (prev?.id === id ? updatedSongObj : prev));
+
+    // 3. Persistir actualización (UPDATE sin duplicar)
+    persistUpdateSong(id, updatedSongObj);
   };
 
   const deleteSong = (id: string) => {

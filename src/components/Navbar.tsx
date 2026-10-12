@@ -56,12 +56,12 @@ export const Navbar: React.FC = () => {
         {/* Main Desktop & Tablet Row (and Mobile Top Row) */}
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
           
-          {/* Logo & Brand: CANCIONERO SALESIANO */}
+          {/* Logo & Brand: CANCIONERO SALESIANO I */}
           <div 
             id="nav-brand"
             onClick={handleCatalogClick}
             className="flex items-center gap-2 sm:gap-3 cursor-pointer group shrink-0"
-            title="Ir al inicio - CANCIONERO SALESIANO"
+            title="Ir al inicio - CANCIONERO SALESIANO I"
           >
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-white border border-rose-100 shadow-xs flex items-center justify-center p-1 group-hover:scale-105 transition-transform shrink-0">
               <SalesianosLogo className="w-full h-full" />
@@ -69,7 +69,7 @@ export const Navbar: React.FC = () => {
             <div>
               <span className="text-sm xs:text-base sm:text-lg font-black tracking-tight text-slate-900 flex items-center gap-1">
                 <span>CANCIONERO</span>
-                <span className="text-[#b31942]">SALESIANO</span>
+                <span className="text-[#b31942]">SALESIANO I</span>
               </span>
               <p className="text-[10px] text-slate-500 hidden md:block leading-none mt-0.5">
                 Letras, acordes y cantos para el camino

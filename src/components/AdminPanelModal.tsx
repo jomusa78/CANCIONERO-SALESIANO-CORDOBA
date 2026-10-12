@@ -75,7 +75,48 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Sync form when editingSong changes
+  // Helper to determine next available song number (e.g. Nº 8, Nº 9)
+  const getNextSongNumber = (): string => {
+    let maxNum = 0;
+    songs.forEach(s => {
+      const match = s.title.match(/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    return `Nº ${maxNum + 1}`;
+  };
+
+  const startNewSongForm = () => {
+    setEditingSong(null);
+    setTitle(getNextSongNumber());
+    setArtist('');
+    setTags(['Salesiano']);
+    setNewTagInput('');
+    setContent('');
+    setPdfUrl(undefined);
+    setPdfFileName(undefined);
+    setPdfFileSize(undefined);
+    setPdfError('');
+    setValidationError('');
+    setActiveTab('form');
+  };
+
+  const resetForm = () => {
+    setTitle(getNextSongNumber());
+    setArtist('');
+    setTags(['Salesiano']);
+    setNewTagInput('');
+    setContent('');
+    setPdfUrl(undefined);
+    setPdfFileName(undefined);
+    setPdfFileSize(undefined);
+    setPdfError('');
+    setValidationError('');
+  };
+
+  // Sync form when editingSong changes (without destructive reset when null)
   useEffect(() => {
     if (editingSong) {
       setTitle(editingSong.title);
@@ -87,23 +128,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       setPdfFileSize(editingSong.pdfFileSize);
       setPdfError('');
       setActiveTab('form');
-    } else {
-      resetForm();
     }
   }, [editingSong]);
-
-  const resetForm = () => {
-    setTitle('');
-    setArtist('');
-    setTags(['Salesiano']);
-    setNewTagInput('');
-    setContent('');
-    setPdfUrl(undefined);
-    setPdfFileName(undefined);
-    setPdfFileSize(undefined);
-    setPdfError('');
-    setValidationError('');
-  };
 
   if (!isOpen) return null;
 
@@ -258,28 +284,35 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       setPdfFileSize(file.size);
       setIsProcessingPdf(false);
 
-      // When uploading a PDF, reset editing state to guarantee an INSERT/push of a new record
+      // If editing an existing song: KEEP editingSong active (do NOT duplicate, modify existing song)
       if (editingSong) {
-        setEditingSong(null);
-      }
-
-      // Auto-populate song title (artist) if empty from filename
-      if (!artist.trim()) {
-        const cleanName = rawBase
-          .replace(/[-_]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        const formatted = cleanName
-          .split(' ')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
-        setArtist(formatted);
-      }
-
-      // If song number (title) is empty, auto-suggest next number
-      if (!title.trim()) {
-        const nextNum = songs.length + 1;
-        setTitle(`Nº ${nextNum}`);
+        if (!artist.trim()) {
+          const cleanName = rawBase
+            .replace(/[-_]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          const formatted = cleanName
+            .split(' ')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+          setArtist(formatted);
+        }
+      } else {
+        // In new song mode: auto-suggest next song number and artist
+        if (!title.trim()) {
+          setTitle(getNextSongNumber());
+        }
+        if (!artist.trim()) {
+          const cleanName = rawBase
+            .replace(/[-_]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          const formatted = cleanName
+            .split(' ')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+          setArtist(formatted);
+        }
       }
     };
 
@@ -338,10 +371,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
     setValidationError('');
 
-    // When saving a song with a PDF (or adding a song), ALWAYS execute an insertion (INSERT / push)
-    // creating a brand new record with automatic ID, NEVER an UPDATE or replacement of an existing object
-    if (pdfUrl || !editingSong) {
-      addSong({
+    if (editingSong) {
+      // MODO MODIFICAR: NO DUPLICAR. Modificar esa canción que ya tiene su ID único
+      updateSong(editingSong.id, {
         title: title.trim(),
         artist: artist.trim(),
         tags,
@@ -354,21 +386,24 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       setTimeout(() => {
         setSaveSuccess(false);
         setEditingSong(null);
-        setActiveTab('list');
         resetForm();
+        setActiveTab('list');
       }, 900);
     } else {
-      // Only for editing existing metadata when no PDF is attached/uploaded
-      updateSong(editingSong.id, {
+      // MODO NUEVA CANCIÓN / INSERCIÓN: Crear nuevo registro con ID automático
+      addSong({
         title: title.trim(),
         artist: artist.trim(),
         tags,
         content: content.trim(),
+        pdfUrl,
+        pdfFileName,
+        pdfFileSize,
       });
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
-        setEditingSong(null);
+        resetForm();
         setActiveTab('list');
       }, 900);
     }
@@ -439,21 +474,34 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             </button>
 
             <button
-              id="admin-tab-form"
+              id="admin-tab-form-new"
               type="button"
-              onClick={() => {
-                setActiveTab('form');
-                if (!editingSong) resetForm();
-              }}
+              onClick={startNewSongForm}
               className={`py-3.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
-                activeTab === 'form'
+                activeTab === 'form' && !editingSong
                   ? 'border-[#b31942] text-[#b31942]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <Plus className="w-4 h-4" />
-              <span>{editingSong ? `Editar: ${editingSong.title}` : 'Subir Canción (PDF)'}</span>
+              <span>Subir Canción (PDF)</span>
             </button>
+
+            {editingSong && (
+              <button
+                id="admin-tab-form-edit"
+                type="button"
+                onClick={() => setActiveTab('form')}
+                className={`py-3.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
+                  activeTab === 'form' && editingSong
+                    ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
+                    : 'border-transparent text-indigo-600 hover:text-indigo-800'
+                }`}
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Editando: {editingSong.title}</span>
+              </button>
+            )}
           </div>
 
           {activeTab === 'list' && (
@@ -597,6 +645,33 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2">
                   <Check className="w-4 h-4 shrink-0" />
                   <span>¡Canción guardada correctamente en el cancionero!</span>
+                </div>
+              )}
+
+              {/* Mode indicator banner */}
+              {editingSong ? (
+                <div className="p-3 bg-amber-50 border border-amber-300 text-amber-950 text-xs sm:text-sm font-semibold rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <Edit3 className="w-4 h-4 text-amber-700 shrink-0" />
+                    <div>
+                      <span>Modo Modificar: Modificando datos de <strong className="text-amber-950">{editingSong.title} — {editingSong.artist}</strong></span>
+                      <p className="text-[11px] text-amber-800 font-normal mt-0.5">
+                        ID Único: <code className="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono text-[10px]">{editingSong.id}</code> · <strong>No se duplicará la canción</strong>, se modificará este registro existente.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startNewSongForm}
+                    className="px-3 py-1.5 bg-white hover:bg-amber-100 border border-amber-300 rounded-lg text-xs font-bold text-amber-900 transition-colors shrink-0 shadow-2xs cursor-pointer"
+                  >
+                    + Cambiar a Subir Nueva Canción
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-950 text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse shrink-0"></span>
+                  <span>Modo Inserción: Se creará un <strong>nuevo registro independiente</strong> en el cancionero (INSERT con ID automático).</span>
                 </div>
               )}
 
@@ -862,10 +937,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 <button
                   id="form-save-song-btn"
                   type="submit"
-                  className="px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-[#b31942] hover:bg-[#991538] rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                  className={`px-5 py-2.5 text-xs sm:text-sm font-bold text-white rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer ${
+                    editingSong
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-[#b31942] hover:bg-[#991538]'
+                  }`}
                 >
                   <Save className="w-4 h-4" />
-                  <span>{editingSong ? 'Guardar Cambios' : 'Guardar Canción'}</span>
+                  <span>
+                    {editingSong
+                      ? `Guardar Modificaciones en ${editingSong.title} (Sin duplicar)`
+                      : 'Guardar Nueva Canción (Crear Registro)'}
+                  </span>
                 </button>
               </div>
 

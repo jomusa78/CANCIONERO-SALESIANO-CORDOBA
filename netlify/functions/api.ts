@@ -311,22 +311,37 @@ export const handler = async (event: NetlifyEvent) => {
     };
   }
 
+  // Route: /api/songs/:id (PUT/PATCH: MODO MODIFICAR sin duplicar)
+  if ((path.includes('/songs/') || path.endsWith('/songs')) && (event.httpMethod === 'PUT' || event.httpMethod === 'PATCH')) {
+    const songId = body.id || path.split('/').pop();
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        operation: 'UPDATE',
+        song: { ...body, id: songId, updatedAt: new Date().toISOString() },
+      })
+    };
+  }
+
   // Route: /api/songs
   if (path.endsWith('/songs')) {
     if (event.httpMethod === 'POST') {
       const isInsert = body.action === 'insert' || body.isInsert === true;
+      const isUpdate = body.action === 'update' || body.isUpdate === true;
       const timestamp = Date.now();
-      const autoId = (isInsert || !body.id)
+      const autoId = (isInsert || (!isUpdate && !body.id))
         ? `song-${timestamp}-${Math.random().toString(36).substring(2, 9)}`
         : body.id;
 
       return {
-        statusCode: isInsert ? 201 : 200,
+        statusCode: (isInsert && !isUpdate) ? 201 : 200,
         headers,
         body: JSON.stringify({
           success: true,
-          operation: isInsert ? 'INSERT' : 'UPDATE',
-          song: { ...body, id: autoId },
+          operation: (isInsert && !isUpdate) ? 'INSERT' : 'UPDATE',
+          song: { ...body, id: autoId, updatedAt: new Date().toISOString() },
         })
       };
     }

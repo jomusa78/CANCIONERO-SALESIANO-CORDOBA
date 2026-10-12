@@ -19,6 +19,7 @@ export interface Song {
   content: string; // Lyrics / sheet text or description
   plainLyrics: string;
   createdAt: string;
+  updatedAt?: string;
   isFavorite?: boolean;
   pdfUrl?: string; // Data URL or URL of uploaded PDF sheet
   pdfFileName?: string;

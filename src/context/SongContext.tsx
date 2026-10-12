@@ -6,6 +6,7 @@ import {
   db,
   collection,
   doc,
+  getDoc,
   setDoc,
   deleteDoc,
   onSnapshot,
@@ -124,20 +125,118 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // 2. Real-time sync with Firebase Cloud Firestore (live across all devices)
-  useEffect(() => {
-    const songsQuery = query(collection(db, 'songs'), where('isPublic', '==', true));
+  // Helper: Convert local server PDF or external URL into full base64 Data URL so all computers can view it
+  const resolvePdfDataUrl = async (pdfUrl?: string): Promise<string | undefined> => {
+    if (!pdfUrl) return undefined;
+    if (pdfUrl.startsWith('data:')) return pdfUrl;
+    try {
+      const res = await fetch(pdfUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(pdfUrl);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (err) {
+      console.warn('[SongContext] Could not resolve pdfUrl to data URL:', err);
+    }
+    return pdfUrl;
+  };
 
+  // Helper: Sanitize object so no undefined values are sent to Firestore (prevents Firestore crash)
+  const cleanSongForFirestore = (song: Song, resolvedPdfUrl?: string): Record<string, any> => {
+    const finalPdfUrl = resolvedPdfUrl !== undefined ? resolvedPdfUrl : song.pdfUrl;
+    const result: Record<string, any> = {
+      id: song.id,
+      title: song.title || '',
+      artist: song.artist || '',
+      tags: Array.isArray(song.tags) && song.tags.length > 0 ? song.tags : ['General'],
+      createdAt: song.createdAt || new Date().toISOString(),
+      updatedAt: song.updatedAt || new Date().toISOString(),
+      isPublic: true,
+    };
+
+    if (song.content) result.content = song.content;
+    if (song.plainLyrics) result.plainLyrics = song.plainLyrics;
+    if (song.originalKey) result.originalKey = song.originalKey;
+    if (song.bpm) result.bpm = Number(song.bpm);
+    if (song.timeSignature) result.timeSignature = song.timeSignature;
+    if (song.isFavorite !== undefined) result.isFavorite = Boolean(song.isFavorite);
+    if (finalPdfUrl) result.pdfUrl = finalPdfUrl;
+    if (song.pdfFileName) result.pdfFileName = song.pdfFileName;
+    if (song.pdfFileSize) result.pdfFileSize = Number(song.pdfFileSize);
+
+    return result;
+  };
+
+  // Helper: Save song and its PDF to Firebase Cloud Firestore for multi-computer availability
+  const saveSongToFirestore = async (song: Song): Promise<boolean> => {
+    try {
+      const resolvedPdf = await resolvePdfDataUrl(song.pdfUrl);
+      const data = cleanSongForFirestore(song, resolvedPdf);
+
+      // Handle PDF scores: if base64 length > 900,000, split across subcollection chunks
+      if (resolvedPdf && resolvedPdf.length > 900000) {
+        const chunkSize = 400000;
+        const totalChunks = Math.ceil(resolvedPdf.length / chunkSize);
+        data.pdfUrl = `firestore-chunks:${totalChunks}`;
+        for (let i = 0; i < totalChunks; i++) {
+          const chunkStr = resolvedPdf.substring(i * chunkSize, (i + 1) * chunkSize);
+          await setDoc(doc(db, 'songs', song.id, 'pdfChunks', String(i)), {
+            index: i,
+            chunk: chunkStr,
+          });
+        }
+      }
+
+      const docRef = doc(db, 'songs', song.id);
+      await setDoc(docRef, data, { merge: true });
+      console.log(`[Firestore DB] ¡Canción sincronizada con éxito en Firebase Cloud! (ID: ${song.id}, Título: ${song.title})`);
+      return true;
+    } catch (err: any) {
+      console.error('[Firestore DB] Error al guardar en Firebase Firestore:', err?.message || err);
+      return false;
+    }
+  };
+
+  // Helper: Retrieve chunked PDF scores from Firestore
+  const fetchChunksPdf = async (songId: string, count: number): Promise<string> => {
+    try {
+      const chunks: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const snap = await getDoc(doc(db, 'songs', songId, 'pdfChunks', String(i)));
+        if (snap.exists()) {
+          chunks.push((snap.data() as any).chunk || '');
+        }
+      }
+      return chunks.join('');
+    } catch (e) {
+      console.warn('[Firestore] Error leyendo trozos de partitura PDF:', e);
+      return '';
+    }
+  };
+
+  // 2. Real-time sync with Firebase Cloud Firestore (live across all computers & devices)
+  useEffect(() => {
     const unsubscribe = onSnapshot(
-      songsQuery,
+      collection(db, 'songs'),
       async snapshot => {
         if (snapshot.empty) {
           return;
         }
 
         const cloudSongs: Song[] = [];
-        snapshot.forEach(docSnap => {
+        for (const docSnap of snapshot.docs) {
           const raw = docSnap.data() as Partial<Song>;
+          let pdfUrl = raw.pdfUrl;
+          if (pdfUrl && pdfUrl.startsWith('firestore-chunks:')) {
+            const count = parseInt(pdfUrl.split(':')[1], 10) || 1;
+            pdfUrl = await fetchChunksPdf(docSnap.id, count);
+          }
+
           const cleanedSong: Song = {
             id: docSnap.id,
             title: raw.title || 'Nº ?',
@@ -145,33 +244,28 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
             originalKey: raw.originalKey,
             bpm: raw.bpm,
             timeSignature: raw.timeSignature,
-            tags: Array.isArray(raw.tags) ? raw.tags : ['General'],
+            tags: Array.isArray(raw.tags) && raw.tags.length > 0 ? raw.tags : ['General'],
             content: raw.content || '',
             plainLyrics: raw.plainLyrics || extractPlainLyrics(raw.content || ''),
             createdAt: raw.createdAt || new Date().toISOString(),
+            updatedAt: raw.updatedAt,
             isFavorite: Boolean(raw.isFavorite),
-            pdfUrl: raw.pdfUrl,
+            pdfUrl: pdfUrl,
             pdfFileName: raw.pdfFileName,
             pdfFileSize: raw.pdfFileSize,
           };
           cloudSongs.push(cleanedSong);
-        });
+        }
 
         if (cloudSongs.length > 0) {
-          console.log(`[Firestore] Real-time sync received: ${cloudSongs.length} songs from Firestore cloud.`);
-          setSongs(prev => {
-            // Merge cloud songs with existing songs, never erase existing records
-            const map = new Map<string, Song>();
-            prev.forEach(s => map.set(s.id, s));
-            cloudSongs.forEach(s => map.set(s.id, s));
-            return Array.from(map.values());
-          });
+          console.log(`[Firestore] Sincronización en tiempo real: ${cloudSongs.length} canciones cargadas desde Firebase Cloud.`);
+          setSongs(cloudSongs);
           setIsCloudSynced(true);
           setSyncSource('cloud');
         }
       },
       error => {
-        console.warn('[Firestore] Notice during real-time sync listener:', error.message);
+        console.warn('[Firestore] Notificación de escucha Firestore:', error.message);
       }
     );
 
@@ -229,9 +323,12 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
   }, [songs, selectedTag, searchQuery, sortBy]);
 
-  // Persist single song addition to Server API and Firestore Cloud (INSERT / push)
+  // Persist single song addition to Firebase Cloud (primary) and Server API (fallback)
   const persistAddSong = async (song: Song) => {
-    // 1. Server persistence: execute INSERT / push creating a new record
+    // 1. Cloud Firestore persistence (immediately live for all computers)
+    await saveSongToFirestore(song);
+
+    // 2. Server persistence: execute INSERT / push creating a new record
     try {
       const res = await fetch('/api/songs/insert', {
         method: 'POST',
@@ -240,12 +337,12 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (res.ok) {
         const data = await res.json().catch(() => null);
-        console.log('[Server DB] Inserción (INSERT/push) ejecutada en base de datos con ID automático:', song.id);
+        console.log('[Server DB] Inserción (INSERT/push) completada en servidor local:', song.id);
         if (data?.song?.pdfUrl && data.song.pdfUrl !== song.pdfUrl) {
           setSongs(prev => prev.map(s => (s.id === song.id ? { ...s, pdfUrl: data.song.pdfUrl } : s)));
         }
       } else {
-        // Fallback to /api/songs with explicit insert action
+        // Fallback to /api/songs
         await fetch('/api/songs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -253,31 +350,30 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     } catch (err) {
-      console.warn('[Server] Notice executing insert on server:', err);
-    }
-
-    // 2. Cloud Firestore persistence: execute INSERT with new automatic document ID
-    try {
-      const docRef = doc(db, 'songs', song.id);
-      await setDoc(docRef, { ...song, isPublic: true });
-      console.log('[Firestore DB] Inserción (INSERT) de nuevo registro completada en Firestore:', song.id);
-    } catch (err) {
-      console.warn('[Firestore] Notice inserting song to cloud:', err);
+      console.warn('[Server] Aviso al persistir en servidor local:', err);
     }
   };
 
-  // Persist single song update to Server API and Firestore Cloud
-  // Persist single song update to Server API and Firestore Cloud (UPDATE only, NEVER duplicate)
+  // Persist single song update to Firebase Cloud (primary) and Server API (fallback)
+  // MODO MODIFICAR: strictly UPDATE without duplication across all computers
   const persistUpdateSong = async (id: string, updatedSong: Song) => {
-    const payload = {
+    const songToPersist = {
       ...updatedSong,
       id,
-      action: 'update',
-      isUpdate: true,
+      updatedAt: new Date().toISOString(),
     };
 
-    // 1. Server persistence via PUT /api/songs/:id (with POST fallback)
+    // 1. Cloud Firestore persistence (strictly updates existing song document, live for all computers)
+    await saveSongToFirestore(songToPersist);
+
+    // 2. Server persistence via PUT /api/songs/:id
     try {
+      const payload = {
+        ...songToPersist,
+        action: 'update',
+        isUpdate: true,
+      };
+
       let res = await fetch(`/api/songs/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -300,38 +396,29 @@ export const SongProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (err) {
-      console.warn('[Server] Notice updating song on server:', err);
-    }
-
-    // 2. Cloud Firestore persistence (merge: true, modify only document with this ID)
-    try {
-      const docRef = doc(db, 'songs', id);
-      await setDoc(docRef, { ...updatedSong, id, isPublic: true }, { merge: true });
-      console.log('[Firestore DB] Canción modificada en Firestore cloud (ID:', id, ')');
-    } catch (err) {
-      console.warn('[Firestore] Notice updating song in cloud:', err);
+      console.warn('[Server] Aviso al actualizar en servidor:', err);
     }
   };
 
-  // Persist song deletion to Server API and Firestore Cloud
+  // Persist song deletion to Firebase Cloud and Server API
   const persistDeleteSong = async (id: string) => {
-    // 1. Server persistence
+    // 1. Cloud Firestore persistence
+    try {
+      const docRef = doc(db, 'songs', id);
+      await deleteDoc(docRef);
+      console.log('[Firestore DB] Canción eliminada de Firebase Cloud:', id);
+    } catch (err) {
+      console.warn('[Firestore DB] Error al eliminar de Firebase Cloud:', err);
+    }
+
+    // 2. Server persistence
     try {
       await fetch(`/api/songs/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       });
-      console.log('[Server] Song deleted from server database:', id);
+      console.log('[Server DB] Canción eliminada del servidor:', id);
     } catch (err) {
-      console.warn('[Server] Could not delete song from server:', err);
-    }
-
-    // 2. Cloud Firestore persistence
-    try {
-      const docRef = doc(db, 'songs', id);
-      await deleteDoc(docRef);
-      console.log('[Firestore] Song deleted from cloud Firestore:', id);
-    } catch (err) {
-      console.warn('[Firestore] Notice deleting song from cloud:', err);
+      console.warn('[Server DB] Error al eliminar del servidor:', err);
     }
   };
 

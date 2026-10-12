@@ -644,7 +644,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               {saveSuccess && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2">
                   <Check className="w-4 h-4 shrink-0" />
-                  <span>¡Canción guardada correctamente en el cancionero!</span>
+                  <span>¡Canción guardada y sincronizada correctamente en Firebase!</span>
                 </div>
               )}
 

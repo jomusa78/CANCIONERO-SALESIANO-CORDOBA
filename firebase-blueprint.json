@@ -65,7 +65,7 @@
         "pdfUrl": {
           "type": "string",
           "description": "URL or Data URI of the uploaded PDF score",
-          "maxLength": 500000
+          "maxLength": 950000
         },
         "pdfFileName": {
           "type": "string",

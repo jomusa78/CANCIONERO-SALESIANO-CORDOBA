@@ -72,7 +72,7 @@ export const Navbar: React.FC = () => {
                 <span className="text-[#b31942]">SALESIANO I</span>
               </span>
               <p className="text-[10px] text-slate-500 hidden md:block leading-none mt-0.5">
-                Letras, acordes y cantos para el camino
+                Partituras y cantos para el camino
               </p>
             </div>
           </div>
@@ -105,7 +105,7 @@ export const Navbar: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={handleSearchChange}
-                placeholder="Buscar por número (ej: 1 o Nº 1), título de canción o letra..."
+                placeholder="Buscar por número (ej: 1 o Nº 1) o título de canción..."
                 className="w-full pl-9 pr-8 py-2 bg-slate-100 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-[#b31942] rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-rose-500/10 transition-all"
               />
               {searchQuery && (

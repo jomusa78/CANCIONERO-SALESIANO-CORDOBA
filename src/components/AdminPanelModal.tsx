@@ -364,8 +364,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       setValidationError('El título de la canción es obligatorio.');
       return;
     }
-    if (!pdfUrl && !content.trim()) {
-      setValidationError('Debes subir un archivo PDF con la canción o partitura.');
+    if (!pdfUrl) {
+      setValidationError('Debes subir un archivo PDF con la partitura de la canción.');
       return;
     }
 
@@ -570,8 +570,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                               <FileText className="w-3 h-3 text-rose-600" /> Archivo PDF
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                              <Music className="w-3 h-3 text-slate-400" /> Letra
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                              <FileText className="w-3 h-3 text-slate-400" /> Sin PDF
                             </span>
                           )}
                         </td>
@@ -742,7 +742,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       Subir archivo PDF de la canción
                     </h3>
                     <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-                      Sube la partitura o letra en formato PDF (.pdf). Podrás visualizarla directamente en el cancionero y descargarla cuando quieras.
+                      Sube la partitura en formato PDF (.pdf). Se visualizará directamente en el visor de partituras del cancionero en cualquier ordenador.
                     </p>
                     <button
                       type="button"
@@ -903,23 +903,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
               </div>
 
-              {/* OPTIONAL LYRICS TEXTAREA (Complementario al PDF para búsqueda semántica) */}
-              <div>
-                <label htmlFor="song-content-editor" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Texto o Letra de la Canción (Opcional)
-                </label>
-                <p className="text-[11px] text-slate-500 mb-2">
-                  Puedes pegar aquí la letra para permitir que los usuarios encuentren la canción al buscar fragmentos de estrofas.
-                </p>
-                <textarea
-                  id="song-content-editor"
-                  rows={6}
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
-                  placeholder="Pega aquí la letra o versos de la canción..."
-                  className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-sm font-sans leading-relaxed focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
-                />
-              </div>
+
 
               {/* Form Action Buttons */}
               <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-3">

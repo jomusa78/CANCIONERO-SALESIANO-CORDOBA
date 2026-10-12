@@ -137,10 +137,10 @@ export const SongCard: React.FC<SongCardProps> = ({
           id={`view-song-${song.id}`}
           type="button"
           onClick={() => onSelect(song)}
-          className="flex-1 py-2 px-3 text-xs sm:text-sm font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+          className="flex-1 py-2 px-3 text-xs sm:text-sm font-semibold text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors flex items-center justify-center gap-1.5"
         >
-          <Music className="w-3.5 h-3.5" />
-          <span>Ver acordes y letra</span>
+          <FileText className="w-3.5 h-3.5" />
+          <span>Ver partitura PDF</span>
           <ChevronRight className="w-3.5 h-3.5 ml-auto" />
         </button>
 
